@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f3d5e" />
+  <title>Dashboard GEEJA — Círculos de Cultura</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#f4f7fb;
+      --surface:#ffffff;
+      --surface-2:#f8fafc;
+      --text:#14243a;
+      --muted:#6b7b8f;
+      --line:#dde5ee;
+      --primary:#0f3d5e;
+      --primary-2:#146a72;
+      --accent:#d9a441;
+      --ok:#20866b;
+      --danger:#b94b53;
+      --shadow:0 14px 35px rgba(20,36,58,.08);
+      --radius:20px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(20,106,114,.10), transparent 28rem),
+        radial-gradient(circle at 90% 0%, rgba(217,164,65,.08), transparent 24rem),
+        var(--bg);
+      color:var(--text);
+    }
+    a{color:inherit}
+    .shell{max-width:1500px;margin:auto;padding:28px}
+    .hero{
+      position:relative;
+      overflow:hidden;
+      border-radius:28px;
+      background:linear-gradient(125deg,#0d3654 0%,#0f5562 60%,#176f6e 100%);
+      color:#fff;
+      padding:34px 36px;
+      box-shadow:0 22px 55px rgba(15,61,94,.22);
+      margin-bottom:24px;
+    }
+    .hero:after{
+      content:"";
+      position:absolute;
+      width:360px;height:360px;border-radius:50%;
+      right:-120px;top:-180px;
+      background:rgba(255,255,255,.08);
+    }
+    .eyebrow{
+      display:inline-flex;align-items:center;gap:8px;
+      font-weight:800;font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;
+      color:#d8f0ed;margin-bottom:10px
+    }
+    h1{font-size:clamp(1.75rem,3vw,2.7rem);line-height:1.05;margin:0 0 12px;max-width:900px}
+    .hero p{margin:0;color:#d9e7ef;max-width:900px;font-size:1rem}
+    .hero-actions{
+      display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;position:relative;z-index:2
+    }
+    button,.btn{
+      appearance:none;border:0;border-radius:12px;padding:11px 15px;
+      font-weight:800;cursor:pointer;transition:.18s;
+      display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-size:.9rem;
+    }
+    .btn-primary{background:#fff;color:var(--primary)}
+    .btn-secondary{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.2)}
+    button:hover,.btn:hover{transform:translateY(-1px)}
+    .status-row{
+      display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+      margin:0 0 18px;color:var(--muted);font-size:.88rem
+    }
+    .status-dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 5px rgba(32,134,107,.12)}
+    .status-dot.loading{background:var(--accent)}
+    .status-dot.error{background:var(--danger)}
+    .panel{
+      background:rgba(255,255,255,.92);
+      backdrop-filter:blur(10px);
+      border:1px solid rgba(221,229,238,.9);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:20px;
+    }
+    .filters{margin-bottom:18px}
+    .section-title{
+      display:flex;justify-content:space-between;align-items:flex-start;gap:16px;
+      margin-bottom:16px
+    }
+    .section-title h2{margin:0;font-size:1.05rem}
+    .section-title p{margin:5px 0 0;color:var(--muted);font-size:.86rem}
+    .filter-grid{
+      display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:12px
+    }
+    label{font-size:.74rem;font-weight:800;color:var(--muted);display:block;margin:0 0 6px}
+    select,input[type="search"]{
+      width:100%;background:#fff;color:var(--text);
+      border:1px solid var(--line);border-radius:12px;padding:11px 12px;
+      outline:none;min-height:42px
+    }
+    select:focus,input[type="search"]:focus{border-color:#7fa7b6;box-shadow:0 0 0 3px rgba(20,106,114,.1)}
+    .metrics{
+      display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:18px
+    }
+    .metric{
+      background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;
+      box-shadow:var(--shadow);min-height:126px
+    }
+    .metric .kicker{color:var(--muted);font-weight:800;font-size:.73rem;text-transform:uppercase;letter-spacing:.06em}
+    .metric .value{font-size:2rem;font-weight:900;margin:8px 0 2px;line-height:1}
+    .metric .hint{font-size:.78rem;color:var(--muted)}
+    .charts{
+      display:grid;grid-template-columns:1.45fr 1fr;gap:18px;margin-bottom:18px
+    }
+    .chart-wrap{height:360px}
+    .charts.secondary{grid-template-columns:1fr 1fr}
+    .gallery{
+      display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px
+    }
+    .media-card{
+      border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--surface-2);
+      min-width:0
+    }
+    .thumb{
+      display:block;width:100%;height:180px;object-fit:cover;background:linear-gradient(135deg,#e8eef3,#dce9ea)
+    }
+    .file-fallback{
+      height:180px;display:flex;align-items:center;justify-content:center;flex-direction:column;
+      gap:9px;color:var(--primary);font-weight:900;background:linear-gradient(135deg,#eef5f8,#e9f3ef)
+    }
+    .media-body{padding:12px}
+    .media-title{font-size:.86rem;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .media-meta{font-size:.74rem;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .media-actions{display:flex;gap:8px;margin-top:10px}
+    .small-btn{
+      padding:8px 10px;border-radius:10px;background:#fff;border:1px solid var(--line);
+      font-size:.75rem;font-weight:900;text-decoration:none
+    }
+    .table-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .table-tools input{max-width:340px}
+    .table-wrap{overflow:auto;max-height:560px;border:1px solid var(--line);border-radius:14px}
+    table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;font-size:.82rem}
+    thead th{
+      position:sticky;top:0;z-index:1;background:#edf3f6;color:#40536a;
+      text-align:left;padding:11px;border-bottom:1px solid var(--line);white-space:nowrap
+    }
+    tbody td{padding:10px 11px;border-bottom:1px solid #eef2f5;max-width:360px;vertical-align:top}
+    tbody tr:hover{background:#f8fbfc}
+    .truncate{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:320px}
+    .empty{
+      border:1px dashed #cbd7e1;border-radius:16px;padding:28px;text-align:center;color:var(--muted);
+      background:#fbfdfe
+    }
+    .error-box{
+      display:none;border:1px solid #edc8cc;background:#fff4f5;color:#8c353c;
+      padding:14px 16px;border-radius:14px;margin-bottom:18px
+    }
+    .footer{color:var(--muted);font-size:.78rem;text-align:center;padding:24px 0 10px}
+    .badge{
+      display:inline-flex;align-items:center;border-radius:999px;padding:5px 8px;background:#e8f2f2;color:#176068;
+      font-size:.7rem;font-weight:900
+    }
+
+    @media(max-width:1180px){
+      .metrics{grid-template-columns:repeat(3,1fr)}
+      .filter-grid{grid-template-columns:repeat(3,1fr)}
+      .gallery{grid-template-columns:repeat(3,1fr)}
+    }
+    @media(max-width:850px){
+      .shell{padding:16px}.hero{padding:26px 22px}
+      .metrics{grid-template-columns:repeat(2,1fr)}
+      .filter-grid{grid-template-columns:repeat(2,1fr)}
+      .charts,.charts.secondary{grid-template-columns:1fr}
+      .gallery{grid-template-columns:repeat(2,1fr)}
+    }
+    @media(max-width:520px){
+      .metrics,.filter-grid,.gallery{grid-template-columns:1fr}
+      .metric{min-height:auto}
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="eyebrow">GEEJA • Formação Presencial</div>
+      <h1>Dashboard — Círculos de Cultura</h1>
+      <p>Acompanhamento dinâmico das respostas do formulário, com indicadores, filtros, gráficos e galeria dos registros enviados.</p>
+      <div class="hero-actions">
+        <button class="btn-primary" id="refreshBtn">↻ Atualizar agora</button>
+        <a class="btn btn-secondary" id="sheetLink" target="_blank" rel="noopener noreferrer">↗ Abrir planilha</a>
+      </div>
+    </section>
+
+    <div class="status-row">
+      <span class="status-dot loading" id="statusDot"></span>
+      <strong id="statusText">Carregando dados da planilha…</strong>
+      <span>•</span>
+      <span id="updatedAt">—</span>
+      <span class="badge" id="autoRefreshBadge">Atualização automática: 60 s</span>
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <section class="panel filters">
+      <div class="section-title">
+        <div>
+          <h2>Filtros</h2>
+          <p>Os filtros disponíveis são detectados automaticamente a partir das colunas da planilha.</p>
+        </div>
+        <button class="small-btn" id="clearFilters">Limpar filtros</button>
+      </div>
+      <div class="filter-grid" id="filterGrid"></div>
+    </section>
+
+    <section class="metrics">
+      <article class="metric">
+        <div class="kicker">Respostas</div>
+        <div class="value" id="mRecords">—</div>
+        <div class="hint">registros no recorte atual</div>
+      </article>
+      <article class="metric">
+        <div class="kicker">Participantes</div>
+        <div class="value" id="mPeople">—</div>
+        <div class="hint" id="mPeopleHint">pessoas identificadas</div>
+      </article>
+      <article class="metric">
+        <div class="kicker">Escolas / Unidades</div>
+        <div class="value" id="mSchools">—</div>
+        <div class="hint">unidades distintas</div>
+      </article>
+      <article class="metric">
+        <div class="kicker">Municípios</div>
+        <div class="value" id="mCities">—</div>
+        <div class="hint">municípios representados</div>
+      </article>
+      <article class="metric">
+        <div class="kicker">Arquivos / fotos</div>
+        <div class="value" id="mMedia">—</div>
+        <div class="hint">links encontrados na coluna de registros</div>
+      </article>
+    </section>
+
+    <section class="charts">
+      <article class="panel">
+        <div class="section-title">
+          <div>
+            <h2 id="chart1Title">Participação por escola</h2>
+            <p>Maiores volumes no recorte selecionado.</p>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="chart1"></canvas></div>
+      </article>
+      <article class="panel">
+        <div class="section-title">
+          <div>
+            <h2 id="chart2Title">Distribuição</h2>
+            <p>Composição dos registros.</p>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="chart2"></canvas></div>
+      </article>
+    </section>
+
+    <section class="charts secondary">
+      <article class="panel">
+        <div class="section-title">
+          <div>
+            <h2 id="chart3Title">Evolução das respostas</h2>
+            <p>Quantidade de registros ao longo do tempo, quando houver coluna de data.</p>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="chart3"></canvas></div>
+      </article>
+      <article class="panel">
+        <div class="section-title">
+          <div>
+            <h2 id="chart4Title">Participação por município</h2>
+            <p>Distribuição territorial dos registros.</p>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="chart4"></canvas></div>
+      </article>
+    </section>
+
+    <section class="panel" style="margin-bottom:18px">
+      <div class="section-title">
+        <div>
+          <h2>Fotos e documentos dos encontros</h2>
+          <p>Conteúdo localizado na coluna “Insira aqui fotos do encontros”.</p>
+        </div>
+        <span class="badge" id="galleryCount">0 arquivos</span>
+      </div>
+      <div class="gallery" id="gallery"></div>
+    </section>
+
+    <section class="panel">
+      <div class="section-title">
+        <div>
+          <h2>Registros da planilha</h2>
+          <p>Visualização detalhada das respostas do recorte atual.</p>
+        </div>
+        <div class="table-tools">
+          <input type="search" id="searchInput" placeholder="Pesquisar nos registros…" />
+          <button class="small-btn" id="exportBtn">Baixar CSV filtrado</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="footer">Dados lidos diretamente da planilha pública do Google Sheets. Aplicação 100% estática, sem banco de dados ou servidor intermediário.</div>
+  </main>
+
+<script>
+const CONFIG = {
+  sheetId: "1tMtA2wyuPzTUXdo3WPSw3zTrsXB8Ydyg2VmA2Bskd0k",
+  gid: "1457688812",
+  sheetUrl: "https://docs.google.com/spreadsheets/d/1tMtA2wyuPzTUXdo3WPSw3zTrsXB8Ydyg2VmA2Bskd0k/edit?gid=1457688812#gid=1457688812",
+  refreshMs: 60000,
+  photoColumnNeedles: ["insira aqui fotos do encontros", "fotos do encontros", "foto do encontro", "fotos do encontro"]
+};
+
+document.getElementById("sheetLink").href = CONFIG.sheetUrl;
+
+let rawRows = [];
+let headers = [];
+let filteredRows = [];
+let charts = {};
+let activeFilters = {};
+let detected = {};
+
+const $ = id => document.getElementById(id);
+const norm = value => (value ?? "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+const uniq = arr => [...new Set(arr.filter(v => v !== null && v !== undefined && String(v).trim() !== "").map(v => String(v).trim()))];
+
+function parseCSV(text){
+  const rows = [];
+  let row = [], cell = "", inQuotes = false;
+  for(let i=0;i<text.length;i++){
+    const ch = text[i], next = text[i+1];
+    if(ch === '"'){
+      if(inQuotes && next === '"'){ cell += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if(ch === "," && !inQuotes){
+      row.push(cell); cell = "";
+    } else if((ch === "\n" || ch === "\r") && !inQuotes){
+      if(ch === "\r" && next === "\n") i++;
+      row.push(cell); cell = "";
+      if(row.some(v => String(v).trim() !== "")) rows.push(row);
+      row = [];
+    } else cell += ch;
+  }
+  row.push(cell);
+  if(row.some(v => String(v).trim() !== "")) rows.push(row);
+  return rows;
+}
+
+function rowsToObjects(matrix){
+  if(!matrix.length) return {headers:[],rows:[]};
+  const hs = matrix[0].map((h,i)=> h.trim() || `Coluna ${i+1}`);
+  const rows = matrix.slice(1).map(cols => {
+    const o = {};
+    hs.forEach((h,i)=>o[h] = cols[i] ?? "");
+    return o;
+  });
+  return {headers:hs,rows};
+}
+
+function findHeader(needles){
+  const normalizedHeaders = headers.map(h=>({h,n:norm(h)}));
+  for(const needle of needles){
+    const n = norm(needle);
+    const exact = normalizedHeaders.find(x => x.n === n);
+    if(exact) return exact.h;
+  }
+  for(const needle of needles){
+    const n = norm(needle);
+    const contains = normalizedHeaders.find(x => x.n.includes(n));
+    if(contains) return contains.h;
+  }
+  return null;
+}
+
+function detectColumns(){
+  detected = {
+    name: findHeader(["nome completo","nome do participante","nome","participante"]),
+    email: findHeader(["endereço de e-mail","endereco de e-mail","e-mail","email"]),
+    school: findHeader(["escola","unidade escolar","instituição","instituicao","unidade"]),
+    city: findHeader(["município","municipio","cidade"]),
+    regional: findHeader(["sre","superintendência","superintendencia","regional"]),
+    meeting: findHeader(["encontro","círculo de cultura","circulo de cultura","formação","formacao"]),
+    role: findHeader(["cargo/função","cargo / função","função","funcao","cargo"]),
+    timestamp: findHeader(["carimbo de data/hora","data e hora","timestamp","data"]),
+    photo: findHeader(CONFIG.photoColumnNeedles)
+  };
+}
+
+function isUsefulCategoricalColumn(h){
+  const values = uniq(rawRows.map(r=>r[h]));
+  const ratio = rawRows.length ? values.length/rawRows.length : 1;
+  const n = norm(h);
+  const blocked = ["nome","email","e-mail","cpf","telefone","observa","coment","foto","arquivo","link","carimbo","data/hora"];
+  if(blocked.some(b=>n.includes(norm(b)))) return false;
+  return values.length >= 2 && values.length <= 80 && ratio <= .7;
+}
+
+function chooseFilterColumns(){
+  const preferred = [detected.school, detected.city, detected.regional, detected.meeting, detected.role].filter(Boolean);
+  const additional = headers.filter(h => !preferred.includes(h) && isUsefulCategoricalColumn(h));
+  return [...new Set([...preferred,...additional])].slice(0,5);
+}
+
+function renderFilters(){
+  const grid = $("filterGrid");
+  grid.innerHTML = "";
+  const cols = chooseFilterColumns();
+
+  if(!cols.length){
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1">Nenhuma coluna categórica adequada para filtro foi identificada.</div>';
+    return;
+  }
+
+  cols.forEach(h=>{
+    const box = document.createElement("div");
+    const label = document.createElement("label");
+    label.textContent = h;
+    const select = document.createElement("select");
+    select.dataset.header = h;
+    select.innerHTML = `<option value="">Todos</option>` + uniq(rawRows.map(r=>r[h]))
+      .sort((a,b)=>a.localeCompare(b,"pt-BR",{numeric:true}))
+      .map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+    select.addEventListener("change", ()=>{
+      activeFilters[h] = select.value;
+      applyFilters();
+    });
+    box.append(label,select);
+    grid.append(box);
+  });
+}
+
+function applyFilters(){
+  const q = norm($("searchInput").value);
+  filteredRows = rawRows.filter(row=>{
+    const matchFilters = Object.entries(activeFilters).every(([h,v]) => !v || String(row[h] ?? "") === v);
+    if(!matchFilters) return false;
+    if(!q) return true;
+    return headers.some(h=>norm(row[h]).includes(q));
+  });
+  renderAll();
+}
+
+function countBy(rows,h){
+  if(!h) return [];
+  const map = new Map();
+  rows.forEach(r=>{
+    const v = String(r[h] ?? "").trim() || "Não informado";
+    map.set(v,(map.get(v)||0)+1);
+  });
+  return [...map.entries()].sort((a,b)=>b[1]-a[1]);
+}
+
+function extractUrls(value){
+  if(!value) return [];
+  const text = String(value);
+  const urls = text.match(/https?:\/\/[^\s,;]+/g) || [];
+  return urls.map(u=>u.replace(/[)\].]+$/,""));
+}
+function driveId(url){
+  const patterns = [
+    /\/file\/d\/([a-zA-Z0-9_-]+)/,
+    /[?&]id=([a-zA-Z0-9_-]+)/,
+    /\/d\/([a-zA-Z0-9_-]+)/
+  ];
+  for(const p of patterns){ const m = url.match(p); if(m) return m[1]; }
+  return null;
+}
+function isDirectImage(url){
+  return /\.(png|jpe?g|gif|webp|bmp)(\?|$)/i.test(url);
+}
+function mediaForRows(rows){
+  if(!detected.photo) return [];
+  const out = [];
+  rows.forEach((r,ri)=>{
+    extractUrls(r[detected.photo]).forEach((url,ui)=>{
+      const id = driveId(url);
+      out.push({
+        url,
+        preview: id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1200` : (isDirectImage(url) ? url : null),
+        label: (detected.school && r[detected.school]) || (detected.name && r[detected.name]) || `Registro ${ri+1}`,
+        meta: (detected.meeting && r[detected.meeting]) || (detected.timestamp && r[detected.timestamp]) || "Arquivo do encontro"
+      });
+    });
+  });
+  return out;
+}
+
+function setMetric(id,value){ $(id).textContent = Number(value || 0).toLocaleString("pt-BR"); }
+
+function renderMetrics(){
+  setMetric("mRecords",filteredRows.length);
+  const personKey = detected.email || detected.name;
+  setMetric("mPeople", personKey ? uniq(filteredRows.map(r=>r[personKey])).length : filteredRows.length);
+  $("mPeopleHint").textContent = personKey ? `pessoas únicas por ${personKey}` : "sem coluna de identificação única";
+  setMetric("mSchools", detected.school ? uniq(filteredRows.map(r=>r[detected.school])).length : 0);
+  setMetric("mCities", detected.city ? uniq(filteredRows.map(r=>r[detected.city])).length : 0);
+  setMetric("mMedia", mediaForRows(filteredRows).length);
+}
+
+function chartColors(n){
+  const base = ["#0f3d5e","#146a72","#d9a441","#5f7f99","#6c9f8d","#846c9b","#bc6f58","#78986f","#4f7689","#c99454"];
+  return Array.from({length:n},(_,i)=>base[i%base.length]);
+}
+function destroyChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+
+function makeBar(id,data,title,horizontal=false,max=12){
+  destroyChart(id);
+  const sliced = data.slice(0,max);
+  const ctx = $(id);
+  charts[id] = new Chart(ctx,{
+    type:"bar",
+    data:{labels:sliced.map(x=>x[0]),datasets:[{data:sliced.map(x=>x[1]),backgroundColor:chartColors(sliced.length),borderWidth:0,borderRadius:8}]},
+    options:{
+      indexAxis:horizontal?"y":"x",
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} registros`}}},
+      scales:{
+        x:{grid:{display:!horizontal,color:"#edf1f4"},ticks:{color:"#65778c"}},
+        y:{grid:{display:horizontal?false:true,color:"#edf1f4"},ticks:{color:"#65778c",autoSkip:false}}
+      }
+    }
+  });
+}
+
+function makeDoughnut(id,data,max=8){
+  destroyChart(id);
+  const sliced = data.slice(0,max);
+  charts[id] = new Chart($(id),{
+    type:"doughnut",
+    data:{labels:sliced.map(x=>x[0]),datasets:[{data:sliced.map(x=>x[1]),backgroundColor:chartColors(sliced.length),borderWidth:3,borderColor:"#fff"}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:"66%",plugins:{legend:{position:"bottom",labels:{boxWidth:10,usePointStyle:true,color:"#52667d"}}}}
+  });
+}
+
+function parseDateBR(value){
+  if(!value) return null;
+  const s = String(value).trim();
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if(m) return new Date(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0),+(m[6]||0));
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+function timeSeries(rows,h){
+  if(!h) return [];
+  const m = new Map();
+  rows.forEach(r=>{
+    const d = parseDateBR(r[h]);
+    if(!d) return;
+    const key = d.toISOString().slice(0,10);
+    m.set(key,(m.get(key)||0)+1);
+  });
+  return [...m.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
+}
+function makeLine(id,data){
+  destroyChart(id);
+  charts[id] = new Chart($(id),{
+    type:"line",
+    data:{labels:data.map(x=>new Date(x[0]+"T00:00:00").toLocaleDateString("pt-BR")),datasets:[{
+      data:data.map(x=>x[1]),borderColor:"#146a72",backgroundColor:"rgba(20,106,114,.14)",
+      fill:true,tension:.32,pointRadius:3,pointHoverRadius:5,borderWidth:3
+    }]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{display:false},ticks:{color:"#65778c"}},
+        y:{beginAtZero:true,grid:{color:"#edf1f4"},ticks:{precision:0,color:"#65778c"}}
+      }
+    }
+  });
+}
+
+function renderCharts(){
+  const h1 = detected.school || detected.city || detected.meeting || chooseFilterColumns()[0];
+  $("chart1Title").textContent = h1 ? `Participação por ${h1.toLowerCase()}` : "Distribuição dos registros";
+  makeBar("chart1",countBy(filteredRows,h1),$("chart1Title").textContent,true,12);
+
+  const h2 = detected.role || detected.meeting || detected.regional || detected.city || chooseFilterColumns()[1] || h1;
+  $("chart2Title").textContent = h2 ? `Distribuição por ${h2.toLowerCase()}` : "Distribuição";
+  makeDoughnut("chart2",countBy(filteredRows,h2),8);
+
+  const series = timeSeries(filteredRows,detected.timestamp);
+  $("chart3Title").textContent = detected.timestamp ? `Evolução por ${detected.timestamp.toLowerCase()}` : "Evolução das respostas";
+  if(series.length) makeLine("chart3",series);
+  else makeBar("chart3",countBy(filteredRows,detected.meeting || h1),$("chart3Title").textContent,false,12);
+
+  const h4 = detected.city || detected.regional || detected.meeting || h2;
+  $("chart4Title").textContent = h4 ? `Participação por ${h4.toLowerCase()}` : "Participação";
+  makeBar("chart4",countBy(filteredRows,h4),$("chart4Title").textContent,true,10);
+}
+
+function escapeHtml(v){
+  return String(v ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+}
+function renderGallery(){
+  const el = $("gallery");
+  const media = mediaForRows(filteredRows);
+  $("galleryCount").textContent = `${media.length.toLocaleString("pt-BR")} ${media.length===1?"arquivo":"arquivos"}`;
+  if(!detected.photo){
+    el.innerHTML = '<div class="empty" style="grid-column:1/-1">A coluna de fotos não foi encontrada. Verifique se o cabeçalho contém “Insira aqui fotos do encontros”.</div>';
+    return;
+  }
+  if(!media.length){
+    el.innerHTML = '<div class="empty" style="grid-column:1/-1">Nenhum link de foto ou documento foi encontrado no recorte atual.</div>';
+    return;
+  }
+  el.innerHTML = media.slice(0,60).map((m,i)=>`
+    <article class="media-card">
+      ${m.preview
+        ? `<img class="thumb" loading="lazy" src="${escapeHtml(m.preview)}" alt="Registro do encontro" onerror="this.outerHTML='<div class=&quot;file-fallback&quot;>▣<span>Arquivo do encontro</span></div>'">`
+        : `<div class="file-fallback">▣<span>Documento / arquivo</span></div>`}
+      <div class="media-body">
+        <div class="media-title" title="${escapeHtml(m.label)}">${escapeHtml(m.label)}</div>
+        <div class="media-meta" title="${escapeHtml(m.meta)}">${escapeHtml(m.meta)}</div>
+        <div class="media-actions">
+          <a class="small-btn" href="${escapeHtml(m.url)}" target="_blank" rel="noopener noreferrer">Abrir arquivo ↗</a>
+        </div>
+      </div>
+    </article>
+  `).join("");
+}
+
+function renderTable(){
+  const thead = $("tableHead"), tbody = $("tableBody");
+  const visibleHeaders = headers.filter(h=>h !== detected.photo).slice(0,14);
+  thead.innerHTML = `<tr>${visibleHeaders.map(h=>`<th>${escapeHtml(h)}</th>`).join("")}</tr>`;
+  tbody.innerHTML = filteredRows.slice(0,500).map(r=>`<tr>${visibleHeaders.map(h=>{
+    const v = r[h] ?? "";
+    return `<td><span class="truncate" title="${escapeHtml(v)}">${escapeHtml(v)}</span></td>`;
+  }).join("")}</tr>`).join("");
+  if(!filteredRows.length) tbody.innerHTML = `<tr><td colspan="${visibleHeaders.length || 1}" style="text-align:center;padding:28px;color:#6b7b8f">Nenhum registro encontrado.</td></tr>`;
+}
+
+function renderAll(){
+  renderMetrics();
+  renderCharts();
+  renderGallery();
+  renderTable();
+}
+
+function tableToObjects(table){
+  const hs = (table.cols || []).map((col,i)=>{
+    const label = (col.label || "").trim();
+    return label || `Coluna ${i+1}`;
+  });
+
+  const rows = (table.rows || []).map(row=>{
+    const obj = {};
+    hs.forEach((h,i)=>{
+      const cell = row.c?.[i];
+      let value = "";
+      if(cell){
+        if(cell.f !== undefined && cell.f !== null) value = cell.f;
+        else if(cell.v !== undefined && cell.v !== null) value = cell.v;
+      }
+      obj[h] = value;
+    });
+    return obj;
+  });
+
+  return {headers:hs, rows};
+}
+
+function fetchGoogleSheetViaGViz(){
+  return new Promise((resolve,reject)=>{
+    if(!window.google) window.google = {};
+    if(!window.google.visualization) window.google.visualization = {};
+    if(!window.google.visualization.Query) window.google.visualization.Query = {};
+
+    const previousHandler = window.google.visualization.Query.setResponse;
+    const script = document.createElement("script");
+    let finished = false;
+
+    const cleanup = ()=>{
+      finished = true;
+      if(script.parentNode) script.parentNode.removeChild(script);
+      window.google.visualization.Query.setResponse = previousHandler;
+      clearTimeout(timeout);
+    };
+
+    window.google.visualization.Query.setResponse = response=>{
+      try{
+        if(!response || response.status === "error"){
+          const details = response?.errors
+            ?.map(e=>e.detailed_message || e.message)
+            .filter(Boolean)
+            .join(" | ");
+          throw new Error(details || "O Google Sheets não retornou os dados.");
+        }
+
+        if(!response.table){
+          throw new Error("A resposta da planilha não contém uma tabela válida.");
+        }
+
+        cleanup();
+        resolve(response.table);
+      }catch(err){
+        cleanup();
+        reject(err);
+      }
+    };
+
+    const url = new URL(`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`);
+    url.searchParams.set("gid", CONFIG.gid);
+    url.searchParams.set("tqx", "out:json");
+    url.searchParams.set("_", Date.now().toString());
+
+    script.src = url.toString();
+    script.async = true;
+
+    script.onerror = ()=>{
+      if(finished) return;
+      cleanup();
+      reject(new Error("Não foi possível acessar a planilha pública pelo Google Sheets."));
+    };
+
+    const timeout = setTimeout(()=>{
+      if(finished) return;
+      cleanup();
+      reject(new Error("O Google Sheets demorou demais para responder."));
+    }, 20000);
+
+    document.head.appendChild(script);
+  });
+}
+
+async function loadData(showLoading=true){
+  if(showLoading){
+    $("statusDot").className = "status-dot loading";
+    $("statusText").textContent = "Atualizando dados da planilha…";
+  }
+
+  $("errorBox").style.display = "none";
+  const previousFilters = {...activeFilters};
+
+  try{
+    const table = await fetchGoogleSheetViaGViz();
+    const parsed = tableToObjects(table);
+
+    if(!parsed.headers.length){
+      throw new Error("A planilha não retornou cabeçalhos.");
+    }
+
+    headers = parsed.headers;
+    rawRows = parsed.rows.filter(r=>headers.some(h=>String(r[h]??"").trim()!==""));
+    filteredRows = rawRows.slice();
+
+    detectColumns();
+    renderFilters();
+
+    activeFilters = {};
+    document.querySelectorAll("#filterGrid select").forEach(select=>{
+      const h = select.dataset.header;
+      const previous = previousFilters[h] || "";
+      if(previous && [...select.options].some(o=>o.value===previous)){
+        select.value = previous;
+        activeFilters[h] = previous;
+      }
+    });
+
+    applyFilters();
+
+    $("updatedAt").textContent = `Última leitura: ${new Date().toLocaleString("pt-BR")}`;
+    $("statusDot").className = "status-dot";
+    $("statusText").textContent = "Dados sincronizados";
+  }catch(err){
+    console.error(err);
+    $("statusDot").className = "status-dot error";
+    $("statusText").textContent = "Não foi possível atualizar";
+    $("errorBox").textContent =
+      "Não foi possível ler a planilha. Confirme se a aba está visível para qualquer pessoa com o link. Detalhe: " + err.message;
+    $("errorBox").style.display = "block";
+  }
+}
+
+function csvEscape(v){
+  const s = String(v ?? "");
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+}
+function exportFiltered(){
+  const lines = [headers.map(csvEscape).join(",")];
+  filteredRows.forEach(r=>lines.push(headers.map(h=>csvEscape(r[h])).join(",")));
+  const blob = new Blob(["\uFEFF"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "frequencia_circulos_cultura_filtrado.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+$("refreshBtn").addEventListener("click",()=>loadData(true));
+$("clearFilters").addEventListener("click",()=>{
+  activeFilters = {};
+  document.querySelectorAll("#filterGrid select").forEach(s=>s.value="");
+  $("searchInput").value="";
+  filteredRows=rawRows.slice(); renderAll();
+});
+$("searchInput").addEventListener("input",applyFilters);
+$("exportBtn").addEventListener("click",exportFiltered);
+
+loadData(true);
+setInterval(()=>loadData(false),CONFIG.refreshMs);
+</script>
+</body>
+</html>
