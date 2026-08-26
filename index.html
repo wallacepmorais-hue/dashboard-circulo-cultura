@@ -105,7 +105,7 @@
     }
     select:focus,input[type="search"]:focus{border-color:#7fa7b6;box-shadow:0 0 0 3px rgba(20,106,114,.1)}
     .metrics{
-      display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:18px
+      display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px
     }
     .metric{
       background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;
@@ -118,7 +118,7 @@
       display:grid;grid-template-columns:1.45fr 1fr;gap:18px;margin-bottom:18px
     }
     .chart-wrap{height:360px}
-    .charts.secondary{grid-template-columns:1fr 1fr}
+    .charts.secondary{grid-template-columns:1fr}
     .gallery{
       display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px
     }
@@ -238,11 +238,6 @@
         <div class="value" id="mCities">—</div>
         <div class="hint">municípios representados</div>
       </article>
-      <article class="metric">
-        <div class="kicker">Arquivos / fotos</div>
-        <div class="value" id="mMedia">—</div>
-        <div class="hint">links encontrados na coluna de registros</div>
-      </article>
     </section>
 
     <section class="charts">
@@ -270,51 +265,12 @@
       <article class="panel">
         <div class="section-title">
           <div>
-            <h2 id="chart3Title">Evolução das respostas</h2>
-            <p>Quantidade de registros ao longo do tempo, quando houver coluna de data.</p>
-          </div>
-        </div>
-        <div class="chart-wrap"><canvas id="chart3"></canvas></div>
-      </article>
-      <article class="panel">
-        <div class="section-title">
-          <div>
             <h2 id="chart4Title">Participação por município</h2>
             <p>Distribuição territorial dos registros.</p>
           </div>
         </div>
         <div class="chart-wrap"><canvas id="chart4"></canvas></div>
       </article>
-    </section>
-
-    <section class="panel" style="margin-bottom:18px">
-      <div class="section-title">
-        <div>
-          <h2>Fotos e documentos dos encontros</h2>
-          <p>Conteúdo localizado na coluna “Insira aqui fotos do encontros”.</p>
-        </div>
-        <span class="badge" id="galleryCount">0 arquivos</span>
-      </div>
-      <div class="gallery" id="gallery"></div>
-    </section>
-
-    <section class="panel">
-      <div class="section-title">
-        <div>
-          <h2>Registros da planilha</h2>
-          <p>Visualização detalhada das respostas do recorte atual.</p>
-        </div>
-        <div class="table-tools">
-          <input type="search" id="searchInput" placeholder="Pesquisar nos registros…" />
-          <button class="small-btn" id="exportBtn">Baixar CSV filtrado</button>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead id="tableHead"></thead>
-          <tbody id="tableBody"></tbody>
-        </table>
-      </div>
     </section>
 
     <div class="footer">Dados lidos diretamente da planilha pública do Google Sheets. Aplicação 100% estática, sem banco de dados ou servidor intermediário.</div>
@@ -394,7 +350,16 @@ function detectColumns(){
   detected = {
     name: findHeader(["nome completo","nome do participante","nome","participante"]),
     email: findHeader(["endereço de e-mail","endereco de e-mail","e-mail","email"]),
-    school: findHeader(["escola","unidade escolar","instituição","instituicao","unidade"]),
+    school: findHeader([
+      "ESCREVA O NOME DA SUA ESCOLA ONDE ESTÁ FAZENDO O CURSO:",
+      "ESCREVA O NOME DA SUA ESCOLA ONDE ESTA FAZENDO O CURSO:",
+      "nome da sua escola onde está fazendo o curso",
+      "nome da sua escola onde esta fazendo o curso",
+      "escola onde está fazendo o curso",
+      "escola onde esta fazendo o curso",
+      "unidade escolar",
+      "escola"
+    ]),
     city: findHeader(["município","municipio","cidade"]),
     regional: findHeader(["sre","superintendência","superintendencia","regional"]),
     meeting: findHeader(["encontro","círculo de cultura","circulo de cultura","formação","formacao"]),
@@ -408,14 +373,30 @@ function isUsefulCategoricalColumn(h){
   const values = uniq(rawRows.map(r=>r[h]));
   const ratio = rawRows.length ? values.length/rawRows.length : 1;
   const n = norm(h);
-  const blocked = ["nome","email","e-mail","cpf","telefone","observa","coment","foto","arquivo","link","carimbo","data/hora"];
+  const blocked = [
+    "nome","email","e-mail","cpf","telefone","observa","coment","foto","arquivo","link","carimbo","data/hora",
+    "se atua na rede municipal","se atuna na rede municipal","atua na rede municipal","atuna na rede municipal"
+  ];
   if(blocked.some(b=>n.includes(norm(b)))) return false;
   return values.length >= 2 && values.length <= 80 && ratio <= .7;
 }
 
+function isMunicipalNetworkQuestion(h){
+  const n = norm(h);
+  return n.includes("se atua na rede municipal") ||
+         n.includes("se atuna na rede municipal") ||
+         n.includes("atua na rede municipal") ||
+         n.includes("atuna na rede municipal");
+}
+
 function chooseFilterColumns(){
-  const preferred = [detected.school, detected.city, detected.regional, detected.meeting, detected.role].filter(Boolean);
-  const additional = headers.filter(h => !preferred.includes(h) && isUsefulCategoricalColumn(h));
+  const preferred = [detected.regional, detected.school, detected.city, detected.meeting, detected.role]
+    .filter(h => h && !isMunicipalNetworkQuestion(h));
+  const additional = headers.filter(
+    h => !preferred.includes(h) &&
+         !isMunicipalNetworkQuestion(h) &&
+         isUsefulCategoricalColumn(h)
+  );
   return [...new Set([...preferred,...additional])].slice(0,5);
 }
 
@@ -448,7 +429,7 @@ function renderFilters(){
 }
 
 function applyFilters(){
-  const q = norm($("searchInput").value);
+  const q = "";
   filteredRows = rawRows.filter(row=>{
     const matchFilters = Object.entries(activeFilters).every(([h,v]) => !v || String(row[h] ?? "") === v);
     if(!matchFilters) return false;
@@ -512,7 +493,6 @@ function renderMetrics(){
   $("mPeopleHint").textContent = personKey ? `pessoas únicas por ${personKey}` : "sem coluna de identificação única";
   setMetric("mSchools", detected.school ? uniq(filteredRows.map(r=>r[detected.school])).length : 0);
   setMetric("mCities", detected.city ? uniq(filteredRows.map(r=>r[detected.city])).length : 0);
-  setMetric("mMedia", mediaForRows(filteredRows).length);
 }
 
 function chartColors(n){
@@ -550,59 +530,31 @@ function makeDoughnut(id,data,max=8){
   });
 }
 
-function parseDateBR(value){
-  if(!value) return null;
-  const s = String(value).trim();
-  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
-  if(m) return new Date(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0),+(m[6]||0));
-  const d = new Date(s);
-  return isNaN(d) ? null : d;
-}
-function timeSeries(rows,h){
-  if(!h) return [];
-  const m = new Map();
-  rows.forEach(r=>{
-    const d = parseDateBR(r[h]);
-    if(!d) return;
-    const key = d.toISOString().slice(0,10);
-    m.set(key,(m.get(key)||0)+1);
-  });
-  return [...m.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
-}
-function makeLine(id,data){
-  destroyChart(id);
-  charts[id] = new Chart($(id),{
-    type:"line",
-    data:{labels:data.map(x=>new Date(x[0]+"T00:00:00").toLocaleDateString("pt-BR")),datasets:[{
-      data:data.map(x=>x[1]),borderColor:"#146a72",backgroundColor:"rgba(20,106,114,.14)",
-      fill:true,tension:.32,pointRadius:3,pointHoverRadius:5,borderWidth:3
-    }]},
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
-      scales:{
-        x:{grid:{display:false},ticks:{color:"#65778c"}},
-        y:{beginAtZero:true,grid:{color:"#edf1f4"},ticks:{precision:0,color:"#65778c"}}
-      }
-    }
-  });
+
+function safeChartHeader(...candidates){
+  return candidates.find(h => h && !isMunicipalNetworkQuestion(h)) || null;
 }
 
 function renderCharts(){
-  const h1 = detected.school || detected.city || detected.meeting || chooseFilterColumns()[0];
+  const filterColumns = chooseFilterColumns();
+
+  // O principal gráfico de participação usa explicitamente a escola do curso.
+  const h1 = safeChartHeader(detected.school, detected.city, detected.meeting, filterColumns[0]);
   $("chart1Title").textContent = h1 ? `Participação por ${h1.toLowerCase()}` : "Distribuição dos registros";
   makeBar("chart1",countBy(filteredRows,h1),$("chart1Title").textContent,true,12);
 
-  const h2 = detected.role || detected.meeting || detected.regional || detected.city || chooseFilterColumns()[1] || h1;
+  const h2 = safeChartHeader(
+    detected.role,
+    detected.meeting,
+    detected.regional,
+    detected.city,
+    filterColumns.find(h => h !== h1),
+    h1
+  );
   $("chart2Title").textContent = h2 ? `Distribuição por ${h2.toLowerCase()}` : "Distribuição";
   makeDoughnut("chart2",countBy(filteredRows,h2),8);
 
-  const series = timeSeries(filteredRows,detected.timestamp);
-  $("chart3Title").textContent = detected.timestamp ? `Evolução por ${detected.timestamp.toLowerCase()}` : "Evolução das respostas";
-  if(series.length) makeLine("chart3",series);
-  else makeBar("chart3",countBy(filteredRows,detected.meeting || h1),$("chart3Title").textContent,false,12);
-
-  const h4 = detected.city || detected.regional || detected.meeting || h2;
+  const h4 = safeChartHeader(detected.city, detected.regional, detected.meeting, detected.school, h2);
   $("chart4Title").textContent = h4 ? `Participação por ${h4.toLowerCase()}` : "Participação";
   makeBar("chart4",countBy(filteredRows,h4),$("chart4Title").textContent,true,10);
 }
@@ -638,22 +590,10 @@ function renderGallery(){
   `).join("");
 }
 
-function renderTable(){
-  const thead = $("tableHead"), tbody = $("tableBody");
-  const visibleHeaders = headers.filter(h=>h !== detected.photo).slice(0,14);
-  thead.innerHTML = `<tr>${visibleHeaders.map(h=>`<th>${escapeHtml(h)}</th>`).join("")}</tr>`;
-  tbody.innerHTML = filteredRows.slice(0,500).map(r=>`<tr>${visibleHeaders.map(h=>{
-    const v = r[h] ?? "";
-    return `<td><span class="truncate" title="${escapeHtml(v)}">${escapeHtml(v)}</span></td>`;
-  }).join("")}</tr>`).join("");
-  if(!filteredRows.length) tbody.innerHTML = `<tr><td colspan="${visibleHeaders.length || 1}" style="text-align:center;padding:28px;color:#6b7b8f">Nenhum registro encontrado.</td></tr>`;
-}
 
 function renderAll(){
   renderMetrics();
   renderCharts();
-  renderGallery();
-  renderTable();
 }
 
 function tableToObjects(table){
@@ -791,30 +731,13 @@ async function loadData(showLoading=true){
   }
 }
 
-function csvEscape(v){
-  const s = String(v ?? "");
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
-}
-function exportFiltered(){
-  const lines = [headers.map(csvEscape).join(",")];
-  filteredRows.forEach(r=>lines.push(headers.map(h=>csvEscape(r[h])).join(",")));
-  const blob = new Blob(["\uFEFF"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "frequencia_circulos_cultura_filtrado.csv";
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
 
 $("refreshBtn").addEventListener("click",()=>loadData(true));
 $("clearFilters").addEventListener("click",()=>{
   activeFilters = {};
   document.querySelectorAll("#filterGrid select").forEach(s=>s.value="");
-  $("searchInput").value="";
   filteredRows=rawRows.slice(); renderAll();
 });
-$("searchInput").addEventListener("input",applyFilters);
-$("exportBtn").addEventListener("click",exportFiltered);
 
 loadData(true);
 setInterval(()=>loadData(false),CONFIG.refreshMs);
