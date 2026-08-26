@@ -251,7 +251,7 @@
       <div class="section-title">
         <div>
           <h2>Análise temporal</h2>
-          <p>Selecione um período entre dias e combine com os demais filtros da planilha.</p>
+          <p>Os filtros são complementares: ao selecionar uma SRE, os demais campos exibem apenas opções compatíveis. O período também atua como filtro global.</p>
         </div>
         <button class="small-btn" id="clearFilters">Limpar filtros</button>
       </div>
@@ -457,6 +457,79 @@ function chooseFilterColumns(){
   return [...new Set([...preferred,...additional])].slice(0,5);
 }
 
+function rowMatchesCategoricalFilters(row, filters=activeFilters, excludeHeader=null){
+  return Object.entries(filters).every(([h,v])=>{
+    if(!v || h === excludeHeader) return true;
+    return String(row[h] ?? "") === v;
+  });
+}
+
+function hasCompatibleRow(filters){
+  return rawRows.some(row=>{
+    if(!rowMatchesDateRange(row)) return false;
+    return Object.entries(filters).every(([h,v])=>{
+      if(!v) return true;
+      return String(row[h] ?? "") === v;
+    });
+  });
+}
+
+function reconcileActiveFilters(changedHeader=null){
+  const cols = chooseFilterColumns();
+
+  // O filtro recém-alterado tem prioridade. Nos demais casos,
+  // a ordem visual é respeitada: SRE -> escola -> demais filtros.
+  const ordered = changedHeader
+    ? [changedHeader, ...cols.filter(h=>h !== changedHeader)]
+    : cols;
+
+  const accepted = {};
+
+  ordered.forEach(h=>{
+    const value = activeFilters[h];
+    if(!value) return;
+
+    const candidate = {...accepted, [h]:value};
+
+    if(hasCompatibleRow(candidate)){
+      accepted[h] = value;
+    }
+  });
+
+  activeFilters = accepted;
+}
+
+function getCompatibleValues(header){
+  const rows = rawRows.filter(row=>{
+    if(!rowMatchesDateRange(row)) return false;
+    return rowMatchesCategoricalFilters(row, activeFilters, header);
+  });
+
+  return uniq(rows.map(r=>r[header]))
+    .sort((a,b)=>a.localeCompare(b,"pt-BR",{numeric:true}));
+}
+
+function updateComplementaryFilterOptions(){
+  document.querySelectorAll("#filterGrid select").forEach(select=>{
+    const h = select.dataset.header;
+    const current = activeFilters[h] || "";
+    const values = getCompatibleValues(h);
+
+    select.innerHTML =
+      `<option value="">Todos</option>` +
+      values.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+
+    if(current && values.includes(current)){
+      select.value = current;
+    }else{
+      select.value = "";
+    }
+
+    // Se não houver nenhuma opção disponível, mantém apenas "Todos".
+    select.disabled = values.length === 0;
+  });
+}
+
 function renderFilters(){
   const grid = $("filterGrid");
   grid.innerHTML = "";
@@ -471,35 +544,41 @@ function renderFilters(){
     const box = document.createElement("div");
     const label = document.createElement("label");
     label.textContent = h;
+
     const select = document.createElement("select");
     select.dataset.header = h;
-    select.innerHTML = `<option value="">Todos</option>` + uniq(rawRows.map(r=>r[h]))
-      .sort((a,b)=>a.localeCompare(b,"pt-BR",{numeric:true}))
-      .map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+
     select.addEventListener("change", ()=>{
-      activeFilters[h] = select.value;
-      applyFilters();
+      if(select.value){
+        activeFilters[h] = select.value;
+      }else{
+        delete activeFilters[h];
+      }
+
+      applyFilters(h);
     });
+
     box.append(label,select);
     grid.append(box);
   });
+
+  updateComplementaryFilterOptions();
 }
 
-function applyFilters(){
+function applyFilters(changedHeader=null){
+  // Elimina automaticamente seleções que deixaram de ser compatíveis
+  // com o filtro recém-escolhido ou com o intervalo de datas.
+  reconcileActiveFilters(changedHeader);
+
   filteredRows = rawRows.filter(row=>{
-    const matchFilters = Object.entries(activeFilters)
-      .every(([h,v]) => !v || String(row[h] ?? "") === v);
-
-    if(!matchFilters) return false;
     if(!rowMatchesDateRange(row)) return false;
-
-    return true;
+    return rowMatchesCategoricalFilters(row);
   });
 
   updateTemporalControls();
+  updateComplementaryFilterOptions();
   renderAll();
 }
-
 
 function parseSheetDate(value){
   if(value === null || value === undefined || value === "") return null;
@@ -901,7 +980,6 @@ async function loadData(showLoading=true){
     filteredRows = rawRows.slice();
 
     detectColumns();
-    renderFilters();
 
     // Mantém o intervalo escolhido, mas respeita os limites atualmente disponíveis.
     const availableRange = getAvailableDateRange();
@@ -913,16 +991,8 @@ async function loadData(showLoading=true){
     if(dateEndValue && maxAvailable && dateEndValue > maxAvailable) dateEndValue = maxAvailable;
     if(dateEndValue && minAvailable && dateEndValue < minAvailable) dateEndValue = minAvailable;
 
-    activeFilters = {};
-    document.querySelectorAll("#filterGrid select").forEach(select=>{
-      const h = select.dataset.header;
-      const previous = previousFilters[h] || "";
-      if(previous && [...select.options].some(o=>o.value===previous)){
-        select.value = previous;
-        activeFilters[h] = previous;
-      }
-    });
-
+    activeFilters = {...previousFilters};
+    renderFilters();
     applyFilters();
 
     $("updatedAt").textContent = `Última leitura: ${new Date().toLocaleString("pt-BR")}`;
