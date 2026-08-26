@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
@@ -94,6 +94,43 @@
     }
     .section-title h2{margin:0;font-size:1.05rem}
     .section-title p{margin:5px 0 0;color:var(--muted);font-size:.86rem}
+    .temporal-filter{
+      display:grid;
+      grid-template-columns:minmax(180px,1fr) minmax(180px,1fr) minmax(220px,1.3fr);
+      gap:12px;
+      padding:14px;
+      margin-bottom:14px;
+      border:1px solid var(--line);
+      border-radius:14px;
+      background:linear-gradient(135deg,#f8fbfc,#f5f8fb);
+      align-items:end
+    }
+    .temporal-summary{
+      min-height:42px;
+      display:flex;
+      align-items:center;
+      padding:10px 12px;
+      border-radius:12px;
+      background:#fff;
+      border:1px solid var(--line);
+      color:var(--muted);
+      font-size:.8rem;
+      line-height:1.35
+    }
+    input[type="date"]{
+      width:100%;
+      background:#fff;
+      color:var(--text);
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:10px 12px;
+      outline:none;
+      min-height:42px
+    }
+    input[type="date"]:focus{
+      border-color:#7fa7b6;
+      box-shadow:0 0 0 3px rgba(20,106,114,.1)
+    }
     .filter-grid{
       display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:12px
     }
@@ -169,17 +206,21 @@
     @media(max-width:1180px){
       .metrics{grid-template-columns:repeat(3,1fr)}
       .filter-grid{grid-template-columns:repeat(3,1fr)}
+      .temporal-filter{grid-template-columns:repeat(2,1fr)}
+      .temporal-summary{grid-column:1/-1}
       .gallery{grid-template-columns:repeat(3,1fr)}
     }
     @media(max-width:850px){
       .shell{padding:16px}.hero{padding:26px 22px}
       .metrics{grid-template-columns:repeat(2,1fr)}
       .filter-grid{grid-template-columns:repeat(2,1fr)}
+      .temporal-filter{grid-template-columns:1fr 1fr}
       .charts,.charts.secondary{grid-template-columns:1fr}
       .gallery{grid-template-columns:repeat(2,1fr)}
     }
     @media(max-width:520px){
-      .metrics,.filter-grid,.gallery{grid-template-columns:1fr}
+      .metrics,.filter-grid,.gallery,.temporal-filter{grid-template-columns:1fr}
+      .temporal-summary{grid-column:auto}
       .metric{min-height:auto}
     }
   </style>
@@ -209,10 +250,24 @@
     <section class="panel filters">
       <div class="section-title">
         <div>
-          <h2>Filtros</h2>
-          <p>Os filtros disponíveis são detectados automaticamente a partir das colunas da planilha.</p>
+          <h2>Análise temporal</h2>
+          <p>Selecione um período entre dias e combine com os demais filtros da planilha.</p>
         </div>
         <button class="small-btn" id="clearFilters">Limpar filtros</button>
+      </div>
+      <div class="temporal-filter" id="temporalFilter">
+        <div>
+          <label for="dateStart">Data inicial</label>
+          <input type="date" id="dateStart" />
+        </div>
+        <div>
+          <label for="dateEnd">Data final</label>
+          <input type="date" id="dateEnd" />
+        </div>
+        <div>
+          <label>Período analisado</label>
+          <div class="temporal-summary" id="temporalSummary">Todo o período disponível</div>
+        </div>
       </div>
       <div class="filter-grid" id="filterGrid"></div>
     </section>
@@ -293,6 +348,8 @@ let filteredRows = [];
 let charts = {};
 let activeFilters = {};
 let detected = {};
+let dateStartValue = "";
+let dateEndValue = "";
 
 const $ = id => document.getElementById(id);
 const norm = value => (value ?? "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
@@ -429,14 +486,154 @@ function renderFilters(){
 }
 
 function applyFilters(){
-  const q = "";
   filteredRows = rawRows.filter(row=>{
-    const matchFilters = Object.entries(activeFilters).every(([h,v]) => !v || String(row[h] ?? "") === v);
+    const matchFilters = Object.entries(activeFilters)
+      .every(([h,v]) => !v || String(row[h] ?? "") === v);
+
     if(!matchFilters) return false;
-    if(!q) return true;
-    return headers.some(h=>norm(row[h]).includes(q));
+    if(!rowMatchesDateRange(row)) return false;
+
+    return true;
   });
+
+  updateTemporalControls();
   renderAll();
+}
+
+
+function parseSheetDate(value){
+  if(value === null || value === undefined || value === "") return null;
+  const s = String(value).trim();
+
+  // Formato típico do Google Sheets no Brasil: dd/mm/aaaa hh:mm:ss
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if(m){
+    return new Date(
+      Number(m[3]),
+      Number(m[2]) - 1,
+      Number(m[1]),
+      Number(m[4] || 0),
+      Number(m[5] || 0),
+      Number(m[6] || 0)
+    );
+  }
+
+  // Formato serializado pelo Google Visualization: Date(2026,7,26,...)
+  m = s.match(/^Date\((\d{4}),(\d{1,2}),(\d{1,2})(?:,(\d{1,2}),(\d{1,2}),(\d{1,2}))?\)$/);
+  if(m){
+    return new Date(
+      Number(m[1]),
+      Number(m[2]),
+      Number(m[3]),
+      Number(m[4] || 0),
+      Number(m[5] || 0),
+      Number(m[6] || 0)
+    );
+  }
+
+  // ISO ou outros formatos reconhecidos pelo navegador
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function toDateInputValue(date){
+  if(!date || Number.isNaN(date.getTime())) return "";
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,"0");
+  const d = String(date.getDate()).padStart(2,"0");
+  return `${y}-${m}-${d}`;
+}
+
+function parseInputDate(value, endOfDay=false){
+  if(!value) return null;
+  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return null;
+  return new Date(
+    Number(m[1]),
+    Number(m[2])-1,
+    Number(m[3]),
+    endOfDay ? 23 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 999 : 0
+  );
+}
+
+function getAvailableDateRange(){
+  if(!detected.timestamp) return {min:null,max:null};
+
+  const dates = rawRows
+    .map(r=>parseSheetDate(r[detected.timestamp]))
+    .filter(d=>d && !Number.isNaN(d.getTime()))
+    .sort((a,b)=>a-b);
+
+  return {
+    min: dates.length ? dates[0] : null,
+    max: dates.length ? dates[dates.length-1] : null
+  };
+}
+
+function updateTemporalControls(){
+  const startInput = $("dateStart");
+  const endInput = $("dateEnd");
+  const summary = $("temporalSummary");
+  if(!startInput || !endInput || !summary) return;
+
+  if(!detected.timestamp){
+    startInput.disabled = true;
+    endInput.disabled = true;
+    summary.textContent = "Coluna de data não identificada na planilha";
+    return;
+  }
+
+  startInput.disabled = false;
+  endInput.disabled = false;
+
+  const range = getAvailableDateRange();
+  const minValue = toDateInputValue(range.min);
+  const maxValue = toDateInputValue(range.max);
+
+  startInput.min = minValue;
+  startInput.max = maxValue;
+  endInput.min = minValue;
+  endInput.max = maxValue;
+
+  if(dateStartValue) startInput.value = dateStartValue;
+  if(dateEndValue) endInput.value = dateEndValue;
+
+  if(dateStartValue && dateEndValue){
+    const ini = parseInputDate(dateStartValue);
+    const fim = parseInputDate(dateEndValue);
+    const dias = ini && fim ? Math.floor((fim - ini) / 86400000) + 1 : null;
+    summary.textContent = `${formatDateShort(ini)} até ${formatDateShort(fim)}${dias ? ` • ${dias} dia${dias===1?"":"s"}` : ""}`;
+  } else if(dateStartValue){
+    summary.textContent = `A partir de ${formatDateShort(parseInputDate(dateStartValue))}`;
+  } else if(dateEndValue){
+    summary.textContent = `Até ${formatDateShort(parseInputDate(dateEndValue))}`;
+  } else if(range.min && range.max){
+    summary.textContent = `Todo o período: ${formatDateShort(range.min)} até ${formatDateShort(range.max)}`;
+  } else {
+    summary.textContent = "Todo o período disponível";
+  }
+}
+
+function formatDateShort(date){
+  if(!date || Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("pt-BR");
+}
+
+function rowMatchesDateRange(row){
+  if(!detected.timestamp || (!dateStartValue && !dateEndValue)) return true;
+
+  const rowDate = parseSheetDate(row[detected.timestamp]);
+  if(!rowDate) return false;
+
+  const start = parseInputDate(dateStartValue, false);
+  const end = parseInputDate(dateEndValue, true);
+
+  if(start && rowDate < start) return false;
+  if(end && rowDate > end) return false;
+  return true;
 }
 
 function countBy(rows,h){
@@ -706,6 +903,16 @@ async function loadData(showLoading=true){
     detectColumns();
     renderFilters();
 
+    // Mantém o intervalo escolhido, mas respeita os limites atualmente disponíveis.
+    const availableRange = getAvailableDateRange();
+    const minAvailable = toDateInputValue(availableRange.min);
+    const maxAvailable = toDateInputValue(availableRange.max);
+
+    if(dateStartValue && minAvailable && dateStartValue < minAvailable) dateStartValue = minAvailable;
+    if(dateStartValue && maxAvailable && dateStartValue > maxAvailable) dateStartValue = maxAvailable;
+    if(dateEndValue && maxAvailable && dateEndValue > maxAvailable) dateEndValue = maxAvailable;
+    if(dateEndValue && minAvailable && dateEndValue < minAvailable) dateEndValue = minAvailable;
+
     activeFilters = {};
     document.querySelectorAll("#filterGrid select").forEach(select=>{
       const h = select.dataset.header;
@@ -733,10 +940,37 @@ async function loadData(showLoading=true){
 
 
 $("refreshBtn").addEventListener("click",()=>loadData(true));
+
+$("dateStart").addEventListener("change",()=>{
+  dateStartValue = $("dateStart").value;
+
+  if(dateStartValue && dateEndValue && dateStartValue > dateEndValue){
+    dateEndValue = dateStartValue;
+    $("dateEnd").value = dateEndValue;
+  }
+
+  applyFilters();
+});
+
+$("dateEnd").addEventListener("change",()=>{
+  dateEndValue = $("dateEnd").value;
+
+  if(dateStartValue && dateEndValue && dateEndValue < dateStartValue){
+    dateStartValue = dateEndValue;
+    $("dateStart").value = dateStartValue;
+  }
+
+  applyFilters();
+});
+
 $("clearFilters").addEventListener("click",()=>{
   activeFilters = {};
+  dateStartValue = "";
+  dateEndValue = "";
   document.querySelectorAll("#filterGrid select").forEach(s=>s.value="");
-  filteredRows=rawRows.slice(); renderAll();
+  $("dateStart").value = "";
+  $("dateEnd").value = "";
+  applyFilters();
 });
 
 loadData(true);
