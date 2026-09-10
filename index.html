@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f3d5e" />
+  <title>Dashboard GEEJA — Círculos de Cultura</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#f4f7fb;
+      --surface:#ffffff;
+      --surface-2:#f8fafc;
+      --text:#14243a;
+      --muted:#6b7b8f;
+      --line:#dde5ee;
+      --primary:#0f3d5e;
+      --primary-2:#146a72;
+      --accent:#d9a441;
+      --ok:#20866b;
+      --danger:#b94b53;
+      --shadow:0 14px 35px rgba(20,36,58,.08);
+      --radius:20px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(20,106,114,.10), transparent 28rem),
+        radial-gradient(circle at 90% 0%, rgba(217,164,65,.08), transparent 24rem),
+        var(--bg);
+      color:var(--text);
+    }
+    a{color:inherit}
+    .shell{max-width:1500px;margin:auto;padding:28px}
+    .hero{
+      position:relative;
+      overflow:hidden;
+      border-radius:28px;
+      background:linear-gradient(125deg,#0d3654 0%,#0f5562 60%,#176f6e 100%);
+      color:#fff;
+      padding:34px 36px;
+      box-shadow:0 22px 55px rgba(15,61,94,.22);
+      margin-bottom:24px;
+    }
+    .hero:after{
+      content:"";
+      position:absolute;
+      width:360px;height:360px;border-radius:50%;
+      right:-120px;top:-180px;
+      background:rgba(255,255,255,.08);
+    }
+    .eyebrow{
+      display:inline-flex;align-items:center;gap:8px;
+      font-weight:800;font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;
+      color:#d8f0ed;margin-bottom:10px
+    }
+    h1{font-size:clamp(1.75rem,3vw,2.7rem);line-height:1.05;margin:0 0 12px;max-width:900px}
+    .hero p{margin:0;color:#d9e7ef;max-width:900px;font-size:1rem}
+    .hero-actions{
+      display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;position:relative;z-index:2
+    }
+    button,.btn{
+      appearance:none;border:0;border-radius:12px;padding:11px 15px;
+      font-weight:800;cursor:pointer;transition:.18s;
+      display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-size:.9rem;
+    }
+    .btn-primary{background:#fff;color:var(--primary)}
+    .btn-secondary{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.2)}
+    button:hover,.btn:hover{transform:translateY(-1px)}
+    .status-row{
+      display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+      margin:0 0 18px;color:var(--muted);font-size:.88rem
+    }
+    .status-dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 5px rgba(32,134,107,.12)}
+    .status-dot.loading{background:var(--accent)}
+    .status-dot.error{background:var(--danger)}
+    .panel{
+      background:rgba(255,255,255,.92);
+      backdrop-filter:blur(10px);
+      border:1px solid rgba(221,229,238,.9);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:20px;
+    }
+    .filters{margin-bottom:18px}
+    .section-title{
+      display:flex;justify-content:space-between;align-items:flex-start;gap:16px;
+      margin-bottom:16px
+    }
+    .section-title h2{margin:0;font-size:1.05rem}
+    .section-title p{margin:5px 0 0;color:var(--muted);font-size:.86rem}
+    .temporal-filter{
+      display:grid;
+      grid-template-columns:minmax(180px,1fr) minmax(180px,1fr) minmax(220px,1.3fr);
+      gap:12px;
+      padding:14px;
+      margin-bottom:14px;
+      border:1px solid var(--line);
+      border-radius:14px;
+      background:linear-gradient(135deg,#f8fbfc,#f5f8fb);
+      align-items:end
+    }
+    .temporal-summary{
+      min-height:42px;
+      display:flex;
+      align-items:center;
+      padding:10px 12px;
+      border-radius:12px;
+      background:#fff;
+      border:1px solid var(--line);
+      color:var(--muted);
+      font-size:.8rem;
+      line-height:1.35
+    }
+    input[type="date"]{
+      width:100%;
+      background:#fff;
+      color:var(--text);
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:10px 12px;
+      outline:none;
+      min-height:42px
+    }
+    input[type="date"]:focus{
+      border-color:#7fa7b6;
+      box-shadow:0 0 0 3px rgba(20,106,114,.1)
+    }
+    .filter-grid{
+      display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:12px
+    }
+    label{font-size:.74rem;font-weight:800;color:var(--muted);display:block;margin:0 0 6px}
+    select,input[type="search"]{
+      width:100%;background:#fff;color:var(--text);
+      border:1px solid var(--line);border-radius:12px;padding:11px 12px;
+      outline:none;min-height:42px
+    }
+    .multi-select{position:relative}
+    .multi-trigger{
+      width:100%;min-height:42px;background:#fff;color:var(--text);
+      border:1px solid var(--line);border-radius:12px;padding:10px 12px;
+      font-weight:600;display:flex;justify-content:space-between;align-items:center;
+      gap:10px;text-align:left;transform:none
+    }
+    .multi-trigger:hover{transform:none}
+    .multi-text{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .multi-count{
+      flex:0 0 auto;min-width:24px;height:24px;padding:0 7px;border-radius:999px;
+      display:inline-flex;align-items:center;justify-content:center;background:#e8f2f2;
+      color:#176068;font-size:.72rem;font-weight:900
+    }
+    .multi-menu{
+      display:none;position:absolute;z-index:30;left:0;right:0;top:calc(100% + 6px);
+      max-height:320px;overflow:auto;padding:8px;background:#fff;border:1px solid var(--line);
+      border-radius:14px;box-shadow:0 16px 36px rgba(20,36,58,.16)
+    }
+    .multi-select.open .multi-menu{display:block}
+    .multi-option{
+      display:flex;gap:9px;align-items:flex-start;padding:9px 8px;border-radius:9px;
+      cursor:pointer;font-size:.82rem;color:var(--text)
+    }
+    .multi-option:hover{background:#f3f7f9}
+    .multi-option input{margin-top:2px;flex:0 0 auto}
+    .multi-actions{
+      display:flex;justify-content:space-between;gap:8px;padding:4px 4px 8px;
+      border-bottom:1px solid var(--line);margin-bottom:4px
+    }
+    .multi-action{
+      border:0;background:transparent;color:var(--primary);padding:5px 6px;
+      font-size:.72rem;font-weight:900
+    }
+    select:focus,input[type="search"]:focus{border-color:#7fa7b6;box-shadow:0 0 0 3px rgba(20,106,114,.1)}
+    .metrics{
+      display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px
+    }
+    .metric{
+      background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;
+      box-shadow:var(--shadow);min-height:126px
+    }
+    .metric .kicker{color:var(--muted);font-weight:800;font-size:.73rem;text-transform:uppercase;letter-spacing:.06em}
+    .metric .value{font-size:2rem;font-weight:900;margin:8px 0 2px;line-height:1}
+    .metric .hint{font-size:.78rem;color:var(--muted)}
+    .charts{
+      display:grid;grid-template-columns:1.45fr 1fr;gap:18px;margin-bottom:18px
+    }
+    .chart-wrap{height:360px}
+    .charts.secondary{grid-template-columns:1fr}
+    .gallery{
+      display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px
+    }
+    .media-card{
+      border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--surface-2);
+      min-width:0
+    }
+    .thumb{
+      display:block;width:100%;height:180px;object-fit:cover;background:linear-gradient(135deg,#e8eef3,#dce9ea)
+    }
+    .file-fallback{
+      height:180px;display:flex;align-items:center;justify-content:center;flex-direction:column;
+      gap:9px;color:var(--primary);font-weight:900;background:linear-gradient(135deg,#eef5f8,#e9f3ef)
+    }
+    .media-body{padding:12px}
+    .media-title{font-size:.86rem;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .media-meta{font-size:.74rem;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .media-actions{display:flex;gap:8px;margin-top:10px}
+    .small-btn{
+      padding:8px 10px;border-radius:10px;background:#fff;border:1px solid var(--line);
+      font-size:.75rem;font-weight:900;text-decoration:none
+    }
+    .table-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .table-tools input{max-width:340px}
+    .table-wrap{overflow:auto;max-height:560px;border:1px solid var(--line);border-radius:14px}
+    table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;font-size:.82rem}
+    thead th{
+      position:sticky;top:0;z-index:1;background:#edf3f6;color:#40536a;
+      text-align:left;padding:11px;border-bottom:1px solid var(--line);white-space:nowrap
+    }
+    tbody td{padding:10px 11px;border-bottom:1px solid #eef2f5;max-width:360px;vertical-align:top}
+    tbody tr:hover{background:#f8fbfc}
+    .truncate{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:320px}
+    .empty{
+      border:1px dashed #cbd7e1;border-radius:16px;padding:28px;text-align:center;color:var(--muted);
+      background:#fbfdfe
+    }
+    .error-box{
+      display:none;border:1px solid #edc8cc;background:#fff4f5;color:#8c353c;
+      padding:14px 16px;border-radius:14px;margin-bottom:18px
+    }
+    .footer{color:var(--muted);font-size:.78rem;text-align:center;padding:24px 0 10px}
+    .badge{
+      display:inline-flex;align-items:center;border-radius:999px;padding:5px 8px;background:#e8f2f2;color:#176068;
+      font-size:.7rem;font-weight:900
+    }
+
+    @media(max-width:1180px){
+      .metrics{grid-template-columns:repeat(3,1fr)}
+      .filter-grid{grid-template-columns:repeat(3,1fr)}
+      .temporal-filter{grid-template-columns:repeat(2,1fr)}
+      .temporal-summary{grid-column:1/-1}
+      .gallery{grid-template-columns:repeat(3,1fr)}
+    }
+    @media(max-width:850px){
+      .shell{padding:16px}.hero{padding:26px 22px}
+      .metrics{grid-template-columns:repeat(2,1fr)}
+      .filter-grid{grid-template-columns:repeat(2,1fr)}
+      .temporal-filter{grid-template-columns:1fr 1fr}
+      .charts,.charts.secondary{grid-template-columns:1fr}
+      .gallery{grid-template-columns:repeat(2,1fr)}
+    }
+    @media(max-width:520px){
+      .metrics,.filter-grid,.gallery,.temporal-filter{grid-template-columns:1fr}
+      .temporal-summary{grid-column:auto}
+      .metric{min-height:auto}
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="eyebrow">GEEJA • Formação Presencial</div>
+      <h1>Dashboard — Círculos de Cultura</h1>
+      <p>Acompanhamento dinâmico das respostas do formulário, com indicadores, filtros, gráficos e galeria dos registros enviados.</p>
+      <div class="hero-actions">
+        <button class="btn-primary" id="refreshBtn">↻ Atualizar agora</button>
+        <a class="btn btn-secondary" id="sheetLink" target="_blank" rel="noopener noreferrer">↗ Abrir planilha</a>
+      </div>
+    </section>
+
+    <div class="status-row">
+      <span class="status-dot loading" id="statusDot"></span>
+      <strong id="statusText">Carregando dados da planilha…</strong>
+      <span>•</span>
+      <span id="updatedAt">—</span>
+      <span class="badge" id="autoRefreshBadge">Atualização automática: 60 s</span>
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <section class="panel filters">
+      <div class="section-title">
+        <div>
+          <h2>Análise temporal</h2>
+          <p>Os filtros são complementares: ao selecionar uma SRE, aparecem apenas escolas compatíveis. No filtro de escola, você pode selecionar várias unidades ao mesmo tempo. O período também atua como filtro global.</p>
+        </div>
+        <button class="small-btn" id="clearFilters">Limpar filtros</button>
+      </div>
+      <div class="temporal-filter" id="temporalFilter">
+        <div>
+          <label for="dateStart">Data inicial</label>
+          <input type="date" id="dateStart" />
+        </div>
+        <div>
+          <label for="dateEnd">Data final</label>
+          <input type="date" id="dateEnd" />
+        </div>
+        <div>
+          <label>Período analisado</label>
+          <div class="temporal-summary" id="temporalSummary">Todo o período disponível</div>
+        </div>
+      </div>
+      <div class="filter-grid" id="filterGrid"></div>
+    </section>
+
+    <section class="metrics">
+      <article class="metric">
+        <div class="kicker">Respostas</div>
+        <div class="value" id="mRecords">—</div>
+        <div class="hint">registros no recorte atual</div>
+      </article>
+      <article class="metric">
+        <div class="kicker">Participantes</div>
+        <div class="value" id="mPeople">—</div>
+        <div class="hint" id="mPeopleHint">pessoas identificadas</div>
+      </article>
+      <article class="metric">
+        <div class="kicker">Escolas / Unidades</div>
+        <div class="value" id="mSchools">—</div>
+        <div class="hint">unidades distintas</div>
+      </article>
+      <article class="metric">
+        <div class="kicker">Municípios</div>
+        <div class="value" id="mCities">—</div>
+        <div class="hint">municípios representados</div>
+      </article>
+    </section>
+
+    <section class="charts">
+      <article class="panel">
+        <div class="section-title">
+          <div>
+            <h2 id="chart1Title">Participação por escola</h2>
+            <p>Maiores volumes no recorte selecionado.</p>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="chart1"></canvas></div>
+      </article>
+      <article class="panel">
+        <div class="section-title">
+          <div>
+            <h2 id="chart2Title">Distribuição</h2>
+            <p>Composição dos registros.</p>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="chart2"></canvas></div>
+      </article>
+    </section>
+
+    <section class="charts secondary">
+      <article class="panel">
+        <div class="section-title">
+          <div>
+            <h2 id="chart4Title">Participação por município</h2>
+            <p>Distribuição territorial dos registros.</p>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="chart4"></canvas></div>
+      </article>
+    </section>
+
+    <div class="footer">Dados lidos diretamente da planilha pública do Google Sheets. Aplicação 100% estática, sem banco de dados ou servidor intermediário.</div>
+  </main>
+
+<script>
+const CONFIG = {
+  sheetId: "1tMtA2wyuPzTUXdo3WPSw3zTrsXB8Ydyg2VmA2Bskd0k",
+  gid: "1457688812",
+  sheetUrl: "https://docs.google.com/spreadsheets/d/1tMtA2wyuPzTUXdo3WPSw3zTrsXB8Ydyg2VmA2Bskd0k/edit?gid=1457688812#gid=1457688812",
+  refreshMs: 60000,
+  photoColumnNeedles: ["insira aqui fotos do encontros", "fotos do encontros", "foto do encontro", "fotos do encontro"]
+};
+
+document.getElementById("sheetLink").href = CONFIG.sheetUrl;
+
+let rawRows = [];
+let headers = [];
+let filteredRows = [];
+let charts = {};
+let activeFilters = {};
+let detected = {};
+let dateStartValue = "";
+let dateEndValue = "";
+
+const $ = id => document.getElementById(id);
+const norm = value => (value ?? "")
+  .toString()
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g,"")
+  .toLowerCase()
+  .replace(/\s+/g," ")
+  .trim();
+
+const uniq = arr => [...new Set(
+  arr
+    .filter(v => v !== null && v !== undefined && String(v).trim() !== "")
+    .map(v => String(v).replace(/\s+/g," ").trim())
+)];
+
+function valuesMatch(rowValue, selectedValue){
+  return norm(rowValue) === norm(selectedValue);
+}
+
+function getFilterValues(header){
+  const value = activeFilters[header];
+  if(Array.isArray(value)) return value.filter(Boolean);
+  return value ? [value] : [];
+}
+
+function isSchoolHeader(header){
+  return !!detected.school && header === detected.school;
+}
+
+function parseCSV(text){
+  const rows = [];
+  let row = [], cell = "", inQuotes = false;
+  for(let i=0;i<text.length;i++){
+    const ch = text[i], next = text[i+1];
+    if(ch === '"'){
+      if(inQuotes && next === '"'){ cell += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if(ch === "," && !inQuotes){
+      row.push(cell); cell = "";
+    } else if((ch === "\n" || ch === "\r") && !inQuotes){
+      if(ch === "\r" && next === "\n") i++;
+      row.push(cell); cell = "";
+      if(row.some(v => String(v).trim() !== "")) rows.push(row);
+      row = [];
+    } else cell += ch;
+  }
+  row.push(cell);
+  if(row.some(v => String(v).trim() !== "")) rows.push(row);
+  return rows;
+}
+
+function rowsToObjects(matrix){
+  if(!matrix.length) return {headers:[],rows:[]};
+  const hs = matrix[0].map((h,i)=> h.trim() || `Coluna ${i+1}`);
+  const rows = matrix.slice(1).map(cols => {
+    const o = {};
+    hs.forEach((h,i)=>o[h] = cols[i] ?? "");
+    return o;
+  });
+  return {headers:hs,rows};
+}
+
+function findHeader(needles){
+  const normalizedHeaders = headers.map(h=>({h,n:norm(h)}));
+  for(const needle of needles){
+    const n = norm(needle);
+    const exact = normalizedHeaders.find(x => x.n === n);
+    if(exact) return exact.h;
+  }
+  for(const needle of needles){
+    const n = norm(needle);
+    const contains = normalizedHeaders.find(x => x.n.includes(n));
+    if(contains) return contains.h;
+  }
+  return null;
+}
+
+function detectColumns(){
+  detected = {
+    name: findHeader(["nome completo","nome do participante","nome","participante"]),
+    email: findHeader(["endereço de e-mail","endereco de e-mail","e-mail","email"]),
+    school: findHeader([
+      "ESCREVA O NOME DA SUA ESCOLA ONDE ESTÁ FAZENDO O CURSO:",
+      "ESCREVA O NOME DA SUA ESCOLA ONDE ESTA FAZENDO O CURSO:",
+      "nome da sua escola onde está fazendo o curso",
+      "nome da sua escola onde esta fazendo o curso",
+      "escola onde está fazendo o curso",
+      "escola onde esta fazendo o curso",
+      "unidade escolar",
+      "escola"
+    ]),
+    city: findHeader(["município","municipio","cidade"]),
+    regional: findHeader(["sre","superintendência","superintendencia","regional"]),
+    meeting: findHeader(["encontro","círculo de cultura","circulo de cultura","formação","formacao"]),
+    role: findHeader(["cargo/função","cargo / função","função","funcao","cargo"]),
+    timestamp: findHeader(["carimbo de data/hora","data e hora","timestamp","data"]),
+    photo: findHeader(CONFIG.photoColumnNeedles)
+  };
+}
+
+function isUsefulCategoricalColumn(h){
+  const values = uniq(rawRows.map(r=>r[h]));
+  const ratio = rawRows.length ? values.length/rawRows.length : 1;
+  const n = norm(h);
+  const blocked = [
+    "nome","email","e-mail","cpf","telefone","observa","coment","foto","arquivo","link","carimbo","data/hora",
+    "se atua na rede municipal","se atuna na rede municipal","atua na rede municipal","atuna na rede municipal"
+  ];
+  if(blocked.some(b=>n.includes(norm(b)))) return false;
+  return values.length >= 2 && values.length <= 80 && ratio <= .7;
+}
+
+function isMunicipalNetworkQuestion(h){
+  const n = norm(h);
+  return n.includes("se atua na rede municipal") ||
+         n.includes("se atuna na rede municipal") ||
+         n.includes("atua na rede municipal") ||
+         n.includes("atuna na rede municipal");
+}
+
+function chooseFilterColumns(){
+  const preferred = [detected.regional, detected.school, detected.city, detected.meeting, detected.role]
+    .filter(h => h && !isMunicipalNetworkQuestion(h));
+  const additional = headers.filter(
+    h => !preferred.includes(h) &&
+         !isMunicipalNetworkQuestion(h) &&
+         isUsefulCategoricalColumn(h)
+  );
+  return [...new Set([...preferred,...additional])].slice(0,5);
+}
+
+function rowMatchesCategoricalFilters(row, filters=activeFilters, excludeHeader=null){
+  return Object.entries(filters).every(([h,value])=>{
+    if(h === excludeHeader) return true;
+    const selected = Array.isArray(value) ? value.filter(Boolean) : (value ? [value] : []);
+    if(!selected.length) return true;
+    return selected.some(v=>valuesMatch(row[h],v));
+  });
+}
+
+function hasCompatibleRow(filters){
+  return rawRows.some(row=>{
+    if(!rowMatchesDateRange(row)) return false;
+    return Object.entries(filters).every(([h,value])=>{
+      const selected = Array.isArray(value) ? value.filter(Boolean) : (value ? [value] : []);
+      if(!selected.length) return true;
+      return selected.some(v=>valuesMatch(row[h],v));
+    });
+  });
+}
+
+function reconcileActiveFilters(changedHeader=null){
+  const cols = chooseFilterColumns();
+  const ordered = changedHeader
+    ? [changedHeader, ...cols.filter(h=>h !== changedHeader)]
+    : cols;
+
+  const accepted = {};
+
+  ordered.forEach(h=>{
+    const rawValue = activeFilters[h];
+    const selected = Array.isArray(rawValue)
+      ? rawValue.filter(Boolean)
+      : (rawValue ? [rawValue] : []);
+
+    if(!selected.length) return;
+
+    if(isSchoolHeader(h)){
+      const validSchools = selected.filter(school=>{
+        const candidate = {...accepted, [h]:[school]};
+        return hasCompatibleRow(candidate);
+      });
+      if(validSchools.length) accepted[h] = validSchools;
+    }else{
+      const candidate = {...accepted, [h]:selected[0]};
+      if(hasCompatibleRow(candidate)) accepted[h] = selected[0];
+    }
+  });
+
+  activeFilters = accepted;
+}
+
+function getCompatibleValues(header){
+  const rows = rawRows.filter(row=>{
+    if(!rowMatchesDateRange(row)) return false;
+    return rowMatchesCategoricalFilters(row, activeFilters, header);
+  });
+
+  const seen = new Map();
+  rows.forEach(r=>{
+    const raw = String(r[header] ?? "").replace(/\s+/g," ").trim();
+    if(!raw) return;
+    const key = norm(raw);
+    if(!seen.has(key)) seen.set(key, raw);
+  });
+
+  return [...seen.values()].sort((a,b)=>a.localeCompare(b,"pt-BR",{numeric:true}));
+}
+
+function buildSchoolMultiSelect(box,h){
+  const wrapper = document.createElement("div");
+  wrapper.className = "multi-select";
+  wrapper.dataset.header = h;
+
+  const trigger = document.createElement("button");
+  trigger.type = "button";
+  trigger.className = "multi-trigger";
+  trigger.setAttribute("aria-expanded","false");
+  trigger.innerHTML = '<span class="multi-text">Todas as escolas</span><span class="multi-count">0</span>';
+
+  const menu = document.createElement("div");
+  menu.className = "multi-menu";
+  menu.addEventListener("click",e=>e.stopPropagation());
+
+  trigger.addEventListener("click",e=>{
+    e.stopPropagation();
+    document.querySelectorAll(".multi-select.open").forEach(other=>{
+      if(other !== wrapper) other.classList.remove("open");
+    });
+    const open = wrapper.classList.toggle("open");
+    trigger.setAttribute("aria-expanded",open ? "true" : "false");
+  });
+
+  wrapper.append(trigger,menu);
+  box.append(wrapper);
+}
+
+function renderFilters(){
+  const grid = $("filterGrid");
+  grid.innerHTML = "";
+  const cols = chooseFilterColumns();
+
+  if(!cols.length){
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1">Nenhuma coluna categórica adequada para filtro foi identificada.</div>';
+    return;
+  }
+
+  cols.forEach(h=>{
+    const box = document.createElement("div");
+    const label = document.createElement("label");
+    label.textContent = h;
+    box.append(label);
+
+    if(isSchoolHeader(h)){
+      buildSchoolMultiSelect(box,h);
+    }else{
+      const select = document.createElement("select");
+      select.dataset.header = h;
+      select.addEventListener("change",()=>{
+        if(select.value) activeFilters[h] = select.value;
+        else delete activeFilters[h];
+        applyFilters(h);
+      });
+      box.append(select);
+    }
+
+    grid.append(box);
+  });
+
+  updateComplementaryFilterOptions();
+}
+
+function updateSchoolMultiSelect(wrapper,h,values){
+  const menu = wrapper.querySelector(".multi-menu");
+  const trigger = wrapper.querySelector(".multi-trigger");
+  const text = wrapper.querySelector(".multi-text");
+  const count = wrapper.querySelector(".multi-count");
+
+  const selected = getFilterValues(h);
+  const validSelected = selected.filter(sel=>values.some(v=>valuesMatch(v,sel)));
+  const selectedKeys = new Set(validSelected.map(norm));
+
+  if(validSelected.length !== selected.length){
+    if(validSelected.length) activeFilters[h] = validSelected;
+    else delete activeFilters[h];
+  }
+
+  menu.innerHTML = "";
+
+  const actions = document.createElement("div");
+  actions.className = "multi-actions";
+
+  const selectAll = document.createElement("button");
+  selectAll.type = "button";
+  selectAll.className = "multi-action";
+  selectAll.textContent = "Selecionar todas";
+  selectAll.addEventListener("click",()=>{
+    if(values.length) activeFilters[h] = values.slice();
+    else delete activeFilters[h];
+    applyFilters(h);
+  });
+
+  const clear = document.createElement("button");
+  clear.type = "button";
+  clear.className = "multi-action";
+  clear.textContent = "Limpar";
+  clear.addEventListener("click",()=>{
+    delete activeFilters[h];
+    applyFilters(h);
+  });
+
+  actions.append(selectAll,clear);
+  menu.append(actions);
+
+  values.forEach(value=>{
+    const option = document.createElement("label");
+    option.className = "multi-option";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = selectedKeys.has(norm(value));
+
+    const span = document.createElement("span");
+    span.textContent = value;
+
+    checkbox.addEventListener("change",()=>{
+      const current = getFilterValues(h);
+      const next = new Map(current.map(v=>[norm(v),v]));
+
+      if(checkbox.checked) next.set(norm(value),value);
+      else next.delete(norm(value));
+
+      const arr = [...next.values()];
+      if(arr.length) activeFilters[h] = arr;
+      else delete activeFilters[h];
+
+      applyFilters(h);
+    });
+
+    option.append(checkbox,span);
+    menu.append(option);
+  });
+
+  count.textContent = String(validSelected.length);
+
+  if(validSelected.length === 0){
+    text.textContent = "Todas as escolas";
+  }else if(validSelected.length === 1){
+    text.textContent = validSelected[0];
+  }else{
+    text.textContent = `${validSelected.length} escolas selecionadas`;
+  }
+
+  trigger.disabled = values.length === 0;
+}
+
+function updateComplementaryFilterOptions(){
+  document.querySelectorAll("#filterGrid [data-header]").forEach(control=>{
+    const h = control.dataset.header;
+    const values = getCompatibleValues(h);
+
+    if(isSchoolHeader(h) && control.classList.contains("multi-select")){
+      updateSchoolMultiSelect(control,h,values);
+      return;
+    }
+
+    const current = getFilterValues(h)[0] || "";
+    control.innerHTML =
+      `<option value="">Todos</option>` +
+      values.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+
+    const matching = current ? values.find(v=>valuesMatch(v,current)) : null;
+
+    if(matching){
+      control.value = matching;
+      activeFilters[h] = matching;
+    }else{
+      control.value = "";
+      if(current) delete activeFilters[h];
+    }
+
+    control.disabled = values.length === 0;
+  });
+}
+
+function applyFilters(changedHeader=null){
+  reconcileActiveFilters(changedHeader);
+
+  filteredRows = rawRows.filter(row=>{
+    if(!rowMatchesDateRange(row)) return false;
+    return rowMatchesCategoricalFilters(row);
+  });
+
+  updateTemporalControls();
+  updateComplementaryFilterOptions();
+  renderAll();
+}
+
+document.addEventListener("click",()=>{
+  document.querySelectorAll(".multi-select.open").forEach(wrapper=>{
+    wrapper.classList.remove("open");
+    const trigger = wrapper.querySelector(".multi-trigger");
+    if(trigger) trigger.setAttribute("aria-expanded","false");
+  });
+});
+
+function parseSheetDate(value){
+  if(value === null || value === undefined || value === "") return null;
+  const s = String(value).trim();
+
+  // Formato típico do Google Sheets no Brasil: dd/mm/aaaa hh:mm:ss
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if(m){
+    return new Date(
+      Number(m[3]),
+      Number(m[2]) - 1,
+      Number(m[1]),
+      Number(m[4] || 0),
+      Number(m[5] || 0),
+      Number(m[6] || 0)
+    );
+  }
+
+  // Formato serializado pelo Google Visualization: Date(2026,7,26,...)
+  m = s.match(/^Date\((\d{4}),(\d{1,2}),(\d{1,2})(?:,(\d{1,2}),(\d{1,2}),(\d{1,2}))?\)$/);
+  if(m){
+    return new Date(
+      Number(m[1]),
+      Number(m[2]),
+      Number(m[3]),
+      Number(m[4] || 0),
+      Number(m[5] || 0),
+      Number(m[6] || 0)
+    );
+  }
+
+  // ISO ou outros formatos reconhecidos pelo navegador
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function toDateInputValue(date){
+  if(!date || Number.isNaN(date.getTime())) return "";
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,"0");
+  const d = String(date.getDate()).padStart(2,"0");
+  return `${y}-${m}-${d}`;
+}
+
+function parseInputDate(value, endOfDay=false){
+  if(!value) return null;
+  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return null;
+  return new Date(
+    Number(m[1]),
+    Number(m[2])-1,
+    Number(m[3]),
+    endOfDay ? 23 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 999 : 0
+  );
+}
+
+function getAvailableDateRange(){
+  if(!detected.timestamp) return {min:null,max:null};
+
+  const dates = rawRows
+    .map(r=>parseSheetDate(r[detected.timestamp]))
+    .filter(d=>d && !Number.isNaN(d.getTime()))
+    .sort((a,b)=>a-b);
+
+  return {
+    min: dates.length ? dates[0] : null,
+    max: dates.length ? dates[dates.length-1] : null
+  };
+}
+
+function updateTemporalControls(){
+  const startInput = $("dateStart");
+  const endInput = $("dateEnd");
+  const summary = $("temporalSummary");
+  if(!startInput || !endInput || !summary) return;
+
+  if(!detected.timestamp){
+    startInput.disabled = true;
+    endInput.disabled = true;
+    summary.textContent = "Coluna de data não identificada na planilha";
+    return;
+  }
+
+  startInput.disabled = false;
+  endInput.disabled = false;
+
+  const range = getAvailableDateRange();
+  const minValue = toDateInputValue(range.min);
+  const maxValue = toDateInputValue(range.max);
+
+  startInput.min = minValue;
+  startInput.max = maxValue;
+  endInput.min = minValue;
+  endInput.max = maxValue;
+
+  if(dateStartValue) startInput.value = dateStartValue;
+  if(dateEndValue) endInput.value = dateEndValue;
+
+  if(dateStartValue && dateEndValue){
+    const ini = parseInputDate(dateStartValue);
+    const fim = parseInputDate(dateEndValue);
+    const dias = ini && fim ? Math.floor((fim - ini) / 86400000) + 1 : null;
+    summary.textContent = `${formatDateShort(ini)} até ${formatDateShort(fim)}${dias ? ` • ${dias} dia${dias===1?"":"s"}` : ""}`;
+  } else if(dateStartValue){
+    summary.textContent = `A partir de ${formatDateShort(parseInputDate(dateStartValue))}`;
+  } else if(dateEndValue){
+    summary.textContent = `Até ${formatDateShort(parseInputDate(dateEndValue))}`;
+  } else if(range.min && range.max){
+    summary.textContent = `Todo o período: ${formatDateShort(range.min)} até ${formatDateShort(range.max)}`;
+  } else {
+    summary.textContent = "Todo o período disponível";
+  }
+}
+
+function formatDateShort(date){
+  if(!date || Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("pt-BR");
+}
+
+function rowMatchesDateRange(row){
+  if(!detected.timestamp || (!dateStartValue && !dateEndValue)) return true;
+
+  const rowDate = parseSheetDate(row[detected.timestamp]);
+  if(!rowDate) return false;
+
+  const start = parseInputDate(dateStartValue, false);
+  const end = parseInputDate(dateEndValue, true);
+
+  if(start && rowDate < start) return false;
+  if(end && rowDate > end) return false;
+  return true;
+}
+
+function countBy(rows,h){
+  if(!h) return [];
+  const map = new Map();
+  rows.forEach(r=>{
+    const v = String(r[h] ?? "").trim() || "Não informado";
+    map.set(v,(map.get(v)||0)+1);
+  });
+  return [...map.entries()].sort((a,b)=>b[1]-a[1]);
+}
+
+function extractUrls(value){
+  if(!value) return [];
+  const text = String(value);
+  const urls = text.match(/https?:\/\/[^\s,;]+/g) || [];
+  return urls.map(u=>u.replace(/[)\].]+$/,""));
+}
+function driveId(url){
+  const patterns = [
+    /\/file\/d\/([a-zA-Z0-9_-]+)/,
+    /[?&]id=([a-zA-Z0-9_-]+)/,
+    /\/d\/([a-zA-Z0-9_-]+)/
+  ];
+  for(const p of patterns){ const m = url.match(p); if(m) return m[1]; }
+  return null;
+}
+function isDirectImage(url){
+  return /\.(png|jpe?g|gif|webp|bmp)(\?|$)/i.test(url);
+}
+function mediaForRows(rows){
+  if(!detected.photo) return [];
+  const out = [];
+  rows.forEach((r,ri)=>{
+    extractUrls(r[detected.photo]).forEach((url,ui)=>{
+      const id = driveId(url);
+      out.push({
+        url,
+        preview: id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1200` : (isDirectImage(url) ? url : null),
+        label: (detected.school && r[detected.school]) || (detected.name && r[detected.name]) || `Registro ${ri+1}`,
+        meta: (detected.meeting && r[detected.meeting]) || (detected.timestamp && r[detected.timestamp]) || "Arquivo do encontro"
+      });
+    });
+  });
+  return out;
+}
+
+function setMetric(id,value){ $(id).textContent = Number(value || 0).toLocaleString("pt-BR"); }
+
+function renderMetrics(){
+  setMetric("mRecords",filteredRows.length);
+  const personKey = detected.email || detected.name;
+  setMetric("mPeople", personKey ? uniq(filteredRows.map(r=>r[personKey])).length : filteredRows.length);
+  $("mPeopleHint").textContent = personKey ? `pessoas únicas por ${personKey}` : "sem coluna de identificação única";
+  setMetric("mSchools", detected.school ? uniq(filteredRows.map(r=>r[detected.school])).length : 0);
+  setMetric("mCities", detected.city ? uniq(filteredRows.map(r=>r[detected.city])).length : 0);
+}
+
+function chartColors(n){
+  const base = ["#0f3d5e","#146a72","#d9a441","#5f7f99","#6c9f8d","#846c9b","#bc6f58","#78986f","#4f7689","#c99454"];
+  return Array.from({length:n},(_,i)=>base[i%base.length]);
+}
+function destroyChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+
+function makeBar(id,data,title,horizontal=false,max=12){
+  destroyChart(id);
+  const sliced = data.slice(0,max);
+  const ctx = $(id);
+  charts[id] = new Chart(ctx,{
+    type:"bar",
+    data:{labels:sliced.map(x=>x[0]),datasets:[{data:sliced.map(x=>x[1]),backgroundColor:chartColors(sliced.length),borderWidth:0,borderRadius:8}]},
+    options:{
+      indexAxis:horizontal?"y":"x",
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} registros`}}},
+      scales:{
+        x:{grid:{display:!horizontal,color:"#edf1f4"},ticks:{color:"#65778c"}},
+        y:{grid:{display:horizontal?false:true,color:"#edf1f4"},ticks:{color:"#65778c",autoSkip:false}}
+      }
+    }
+  });
+}
+
+function makeDoughnut(id,data,max=8){
+  destroyChart(id);
+  const sliced = data.slice(0,max);
+  charts[id] = new Chart($(id),{
+    type:"doughnut",
+    data:{labels:sliced.map(x=>x[0]),datasets:[{data:sliced.map(x=>x[1]),backgroundColor:chartColors(sliced.length),borderWidth:3,borderColor:"#fff"}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:"66%",plugins:{legend:{position:"bottom",labels:{boxWidth:10,usePointStyle:true,color:"#52667d"}}}}
+  });
+}
+
+
+function safeChartHeader(...candidates){
+  return candidates.find(h => h && !isMunicipalNetworkQuestion(h)) || null;
+}
+
+function renderCharts(){
+  const filterColumns = chooseFilterColumns();
+
+  // O principal gráfico de participação usa explicitamente a escola do curso.
+  const h1 = safeChartHeader(detected.school, detected.city, detected.meeting, filterColumns[0]);
+  $("chart1Title").textContent = h1 ? `Participação por ${h1.toLowerCase()}` : "Distribuição dos registros";
+  makeBar("chart1",countBy(filteredRows,h1),$("chart1Title").textContent,true,12);
+
+  const h2 = safeChartHeader(
+    detected.role,
+    detected.meeting,
+    detected.regional,
+    detected.city,
+    filterColumns.find(h => h !== h1),
+    h1
+  );
+  $("chart2Title").textContent = h2 ? `Distribuição por ${h2.toLowerCase()}` : "Distribuição";
+  makeDoughnut("chart2",countBy(filteredRows,h2),8);
+
+  const h4 = safeChartHeader(detected.city, detected.regional, detected.meeting, detected.school, h2);
+  $("chart4Title").textContent = h4 ? `Participação por ${h4.toLowerCase()}` : "Participação";
+  makeBar("chart4",countBy(filteredRows,h4),$("chart4Title").textContent,true,10);
+}
+
+function escapeHtml(v){
+  return String(v ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+}
+function renderGallery(){
+  const el = $("gallery");
+  const media = mediaForRows(filteredRows);
+  $("galleryCount").textContent = `${media.length.toLocaleString("pt-BR")} ${media.length===1?"arquivo":"arquivos"}`;
+  if(!detected.photo){
+    el.innerHTML = '<div class="empty" style="grid-column:1/-1">A coluna de fotos não foi encontrada. Verifique se o cabeçalho contém “Insira aqui fotos do encontros”.</div>';
+    return;
+  }
+  if(!media.length){
+    el.innerHTML = '<div class="empty" style="grid-column:1/-1">Nenhum link de foto ou documento foi encontrado no recorte atual.</div>';
+    return;
+  }
+  el.innerHTML = media.slice(0,60).map((m,i)=>`
+    <article class="media-card">
+      ${m.preview
+        ? `<img class="thumb" loading="lazy" src="${escapeHtml(m.preview)}" alt="Registro do encontro" onerror="this.outerHTML='<div class=&quot;file-fallback&quot;>▣<span>Arquivo do encontro</span></div>'">`
+        : `<div class="file-fallback">▣<span>Documento / arquivo</span></div>`}
+      <div class="media-body">
+        <div class="media-title" title="${escapeHtml(m.label)}">${escapeHtml(m.label)}</div>
+        <div class="media-meta" title="${escapeHtml(m.meta)}">${escapeHtml(m.meta)}</div>
+        <div class="media-actions">
+          <a class="small-btn" href="${escapeHtml(m.url)}" target="_blank" rel="noopener noreferrer">Abrir arquivo ↗</a>
+        </div>
+      </div>
+    </article>
+  `).join("");
+}
+
+
+function renderAll(){
+  renderMetrics();
+  renderCharts();
+}
+
+function tableToObjects(table){
+  const hs = (table.cols || []).map((col,i)=>{
+    const label = (col.label || "").trim();
+    return label || `Coluna ${i+1}`;
+  });
+
+  const rows = (table.rows || []).map(row=>{
+    const obj = {};
+    hs.forEach((h,i)=>{
+      const cell = row.c?.[i];
+      let value = "";
+      if(cell){
+        if(cell.f !== undefined && cell.f !== null) value = cell.f;
+        else if(cell.v !== undefined && cell.v !== null) value = cell.v;
+      }
+      obj[h] = value;
+    });
+    return obj;
+  });
+
+  return {headers:hs, rows};
+}
+
+function fetchGoogleSheetViaGViz(){
+  return new Promise((resolve,reject)=>{
+    if(!window.google) window.google = {};
+    if(!window.google.visualization) window.google.visualization = {};
+    if(!window.google.visualization.Query) window.google.visualization.Query = {};
+
+    const previousHandler = window.google.visualization.Query.setResponse;
+    const script = document.createElement("script");
+    let finished = false;
+
+    const cleanup = ()=>{
+      finished = true;
+      if(script.parentNode) script.parentNode.removeChild(script);
+      window.google.visualization.Query.setResponse = previousHandler;
+      clearTimeout(timeout);
+    };
+
+    window.google.visualization.Query.setResponse = response=>{
+      try{
+        if(!response || response.status === "error"){
+          const details = response?.errors
+            ?.map(e=>e.detailed_message || e.message)
+            .filter(Boolean)
+            .join(" | ");
+          throw new Error(details || "O Google Sheets não retornou os dados.");
+        }
+
+        if(!response.table){
+          throw new Error("A resposta da planilha não contém uma tabela válida.");
+        }
+
+        cleanup();
+        resolve(response.table);
+      }catch(err){
+        cleanup();
+        reject(err);
+      }
+    };
+
+    const url = new URL(`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`);
+    url.searchParams.set("gid", CONFIG.gid);
+    url.searchParams.set("tqx", "out:json");
+    url.searchParams.set("_", Date.now().toString());
+
+    script.src = url.toString();
+    script.async = true;
+
+    script.onerror = ()=>{
+      if(finished) return;
+      cleanup();
+      reject(new Error("Não foi possível acessar a planilha pública pelo Google Sheets."));
+    };
+
+    const timeout = setTimeout(()=>{
+      if(finished) return;
+      cleanup();
+      reject(new Error("O Google Sheets demorou demais para responder."));
+    }, 20000);
+
+    document.head.appendChild(script);
+  });
+}
+
+async function loadData(showLoading=true){
+  if(showLoading){
+    $("statusDot").className = "status-dot loading";
+    $("statusText").textContent = "Atualizando dados da planilha…";
+  }
+
+  $("errorBox").style.display = "none";
+  const previousFilters = {...activeFilters};
+
+  try{
+    const table = await fetchGoogleSheetViaGViz();
+    const parsed = tableToObjects(table);
+
+    if(!parsed.headers.length){
+      throw new Error("A planilha não retornou cabeçalhos.");
+    }
+
+    headers = parsed.headers;
+    rawRows = parsed.rows.filter(r=>headers.some(h=>String(r[h]??"").trim()!==""));
+    filteredRows = rawRows.slice();
+
+    detectColumns();
+
+    // Mantém o intervalo escolhido, mas respeita os limites atualmente disponíveis.
+    const availableRange = getAvailableDateRange();
+    const minAvailable = toDateInputValue(availableRange.min);
+    const maxAvailable = toDateInputValue(availableRange.max);
+
+    if(dateStartValue && minAvailable && dateStartValue < minAvailable) dateStartValue = minAvailable;
+    if(dateStartValue && maxAvailable && dateStartValue > maxAvailable) dateStartValue = maxAvailable;
+    if(dateEndValue && maxAvailable && dateEndValue > maxAvailable) dateEndValue = maxAvailable;
+    if(dateEndValue && minAvailable && dateEndValue < minAvailable) dateEndValue = minAvailable;
+
+    activeFilters = {...previousFilters};
+    renderFilters();
+    applyFilters();
+
+    $("updatedAt").textContent = `Última leitura: ${new Date().toLocaleString("pt-BR")}`;
+    $("statusDot").className = "status-dot";
+    $("statusText").textContent = "Dados sincronizados";
+  }catch(err){
+    console.error(err);
+    $("statusDot").className = "status-dot error";
+    $("statusText").textContent = "Não foi possível atualizar";
+    $("errorBox").textContent =
+      "Não foi possível ler a planilha. Confirme se a aba está visível para qualquer pessoa com o link. Detalhe: " + err.message;
+    $("errorBox").style.display = "block";
+  }
+}
+
+
+$("refreshBtn").addEventListener("click",()=>loadData(true));
+
+$("dateStart").addEventListener("change",()=>{
+  dateStartValue = $("dateStart").value;
+
+  if(dateStartValue && dateEndValue && dateStartValue > dateEndValue){
+    dateEndValue = dateStartValue;
+    $("dateEnd").value = dateEndValue;
+  }
+
+  applyFilters();
+});
+
+$("dateEnd").addEventListener("change",()=>{
+  dateEndValue = $("dateEnd").value;
+
+  if(dateStartValue && dateEndValue && dateEndValue < dateStartValue){
+    dateStartValue = dateEndValue;
+    $("dateStart").value = dateStartValue;
+  }
+
+  applyFilters();
+});
+
+$("clearFilters").addEventListener("click",()=>{
+  activeFilters = {};
+  dateStartValue = "";
+  dateEndValue = "";
+  document.querySelectorAll("#filterGrid select").forEach(s=>s.value="");
+  $("dateStart").value = "";
+  $("dateEnd").value = "";
+  applyFilters();
+});
+
+loadData(true);
+setInterval(()=>loadData(false),CONFIG.refreshMs);
+</script>
+</body>
+</html>
